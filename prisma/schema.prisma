@@ -1,0 +1,200 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  password  String
+  name      String
+  role      Role       @default(CUSTOMER)
+  status    UserStatus @default(PENDING)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  profile UserProfile?
+  Payment Payment[]
+}
+
+model UserProfile {
+  id            String         @id @default(cuid())
+  name          String         @default("")
+  phone         String?
+  address       Address?
+  user          User?          @relation(fields: [userId], references: [id])
+  userId        String?        @unique
+  regionId      String?
+  Odp           Odp?           @relation(fields: [odpId], references: [id])
+  odpId         String?
+  subscriptions Subscription[]
+}
+
+model Address {
+  id          String  @id @default(cuid())
+  street      String? // Street name or detailed address (optional)
+  subDistrict String // e.g., Village/Sub-district
+  district    String // e.g., Kecamatan
+  city        String // e.g., City or Regency
+  province    String // e.g., Province
+  postalCode  String?
+
+  userProfile   UserProfile? @relation(fields: [userProfileId], references: [id])
+  userProfileId String?      @unique
+}
+
+model WebsiteInfo {
+  id          String   @id @default(cuid())
+  name        String // Full website name (e.g. "MyISP Provider")
+  alias       String? // Short alias or acronym (e.g. "MIP")
+  logoUrl     String? // Logo image URL or path
+  description String? // Optional short description of the website or service
+  address     String? // Full company/office address
+  phone       String? // Contact phone number
+  email       String? // Contact email
+  website     String? // Public-facing website URL
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Router {
+  id          String    @id @default(cuid())
+  name        String
+  ipAddress   String    @unique
+  apiUsername String
+  apiPassword String
+  description String? // opsional, catatan teknis router
+  status      Boolean   @default(false)
+  port        Int       @default(0000)
+  odpList     Odp[] // Relasi ke ODP
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  packages    Package[]
+}
+
+model Odp {
+  id            String         @id @default(cuid())
+  name          String
+  location      String
+  longitude     String         @default("")
+  latitude      String         @default("")
+  region        String // misal: "Kec. ABC" atau "Desa XYZ"
+  capacity      Int // Maksimum port/customer
+  routerId      String
+  router        Router         @relation(fields: [routerId], references: [id])
+  customers     UserProfile[] // Relasi ke customer
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
+}
+
+model Package {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  description   String?
+  routerId      String
+  router        Router         @relation(fields: [routerId], references: [id])
+  poolName      String
+  localAddress  String
+  rateLimit     String?
+  price         Int
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id            String      @id @default(cuid())
+  number        String      @default("")
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id])
+  userProfileId String
+  odp           Odp         @relation(fields: [odpId], references: [id])
+  odpId         String
+  package       Package     @relation(fields: [packageId], references: [id])
+  packageId     String
+  active        Boolean     @default(false)
+  expiredAt     DateTime? // masa aktif langganan dinamis (akan)
+  dueDate       String
+  isAudited     Boolean     @default(false) // sudah di audit apa belum? jika sudah maka audit hari berikutnya tidak akan masuk task
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  payments      Payment[]
+  usersPPPOE    UserPPPOE[]
+}
+
+model UserPPPOE {
+  id             String        @id @default(cuid())
+  username       String
+  password       String
+  localAddress   String        @default("")
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  subscriptionId String
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  number         String        @default("")
+  user           User?         @relation(fields: [userId], references: [id])
+  userId         String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String?
+  amount         Int
+  tax            Float
+  status         PaymentStatus @default(PENDING)
+  paymentLink    String        @default("")
+  paymentMethod  String? // contoh: "midtrans", "manual"
+  transactionId  String? // ID dari Midtrans atau referensi manual
+  expiredAt      DateTime? // misal batas waktu bayar invoice midtrans
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  Cashflow       Cashflow[]
+}
+
+model Cashflow {
+  id          String       @id @default(cuid())
+  type        CashflowType // INCOME atau EXPENSE
+  amount      Int
+  description String?
+  date        DateTime     @default(now())
+  payment     Payment?     @relation(fields: [paymentId], references: [id])
+  paymentId   String?
+  reference   String       @default("")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+enum CashflowType {
+  INCOME // uang masuk
+  EXPENSE // uang keluar
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELED
+}
+
+enum Role {
+  ADMIN
+  CUSTOMER
+  TECHNICIAN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPEND
+  PENDING
+}

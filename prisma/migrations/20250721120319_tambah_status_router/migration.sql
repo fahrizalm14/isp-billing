@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Router" ADD COLUMN     "port" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "status" BOOLEAN NOT NULL DEFAULT false;
