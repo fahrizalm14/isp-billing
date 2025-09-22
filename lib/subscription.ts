@@ -3,7 +3,7 @@ import { createUserPPPOE, movePPPOEToProfile } from "./mikrotik/pppoe";
 import { generateRandomPrefix } from "./numbering";
 import { formatDate, getNextDueDate } from "./payment";
 import { prisma } from "./prisma";
-import { sendMessage } from "./whatsapp";
+import { runTriggers } from "./runTriggers";
 
 export const activateSubscription = async (
   subscriptionId: string,
@@ -92,6 +92,7 @@ export const activateSubscription = async (
     },
   });
 
+  await runTriggers("ACTIVATE_SUBSCRIPTION", subscriptionId);
   return _expiredAt;
 };
 
@@ -130,14 +131,5 @@ export const deactivateSubscription = async (
       name: subscription.usersPPPOE[0].username,
     }
   );
-
-  const message =
-    `Halo ${subscription.userProfile.name},\n\n` +
-    `Layanan internet Anda dengan paket *${subscription.package.name}* telah *dinonaktifkan* karena tagihan bulan ini belum dibayarkan.\n\n` +
-    `Detail Akun:
-- Nomor Langganan: ${subscription.number}\n\n` +
-    `Silakan segera melakukan pembayaran agar layanan dapat diaktifkan kembali.\n` +
-    `Jika Anda sudah melakukan pembayaran atau membutuhkan bantuan, silakan hubungi admin/teknisi.`;
-
-  sendMessage(subscription.userProfile.phone || "", message);
+  await runTriggers("DEACTIVATE_SUBSCRIPTION", subscriptionId);
 };

@@ -6,6 +6,7 @@ import {
   BsCreditCard,
   BsGear,
   BsHouseDoor,
+  BsMessenger,
   BsPerson,
   BsRouter,
 } from "react-icons/bs";
@@ -59,6 +60,11 @@ export const SIDENAV_ITEMS: SideNavItemGroup[] = [
         title: "Kas",
         path: "/cash-flows",
         icon: <BsBarChart size={20} />,
+      },
+      {
+        title: "Broadcast",
+        path: "/messages",
+        icon: <BsMessenger size={20} />,
       },
     ],
   },

@@ -6,6 +6,7 @@ import { formatPhoneNumberToIndonesia } from "@/lib/mikrotik/adapator";
 import { generateSubscriptionNumber } from "@/lib/numbering";
 import { createPayment } from "@/lib/payment";
 import { prisma } from "@/lib/prisma";
+import { runTriggers } from "@/lib/runTriggers";
 import { NextRequest, NextResponse } from "next/server";
 
 interface Address {
@@ -94,6 +95,7 @@ export async function POST(req: Request) {
       },
     });
 
+    await runTriggers("REGISTER_SUCCESS", subs.id);
     await createPayment({
       amount: pkg.price,
       customerName: profile.name,

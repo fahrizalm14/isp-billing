@@ -55,7 +55,7 @@ model Address {
 }
 
 model WebsiteInfo {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String // Full website name (e.g. "MyISP Provider")
   alias       String? // Short alias or acronym (e.g. "MIP")
   logoUrl     String? // Logo image URL or path
@@ -64,8 +64,17 @@ model WebsiteInfo {
   phone       String? // Contact phone number
   email       String? // Contact email
   website     String? // Public-facing website URL
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+
+  apiUrl    String? // endpoint generic tele/wa
+  apiSecret String? // secret tele/wa
+  apiKey    String? // token tele/wa
+
+  // nomor default tujuan selain customer
+  adminPhone   String?
+  supportPhone String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Router {
@@ -175,6 +184,41 @@ model Cashflow {
   updatedAt   DateTime     @updatedAt
 }
 
+model Template {
+  id        String    @id @default(cuid())
+  name      String
+  content   String // "Halo {{customerName}}, pendaftaran berhasil."
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  triggers  Trigger[]
+}
+
+model Trigger {
+  id          String  @id @default(cuid())
+  key         String
+  description String?
+  isActive    Boolean @default(true)
+
+  scope TriggerScope @default(ADMIN) // <- baru
+
+  templateId String
+  template   Template @relation(fields: [templateId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id         String  @id @default(cuid())
+  triggerKey String? // null kalau direct/manual
+  toNumber   String
+  content    String
+  status     String // QUEUED, SENT, FAILED
+  error      String?
+
+  createdAt DateTime @default(now())
+}
+
 enum CashflowType {
   INCOME // uang masuk
   EXPENSE // uang keluar
@@ -197,4 +241,10 @@ enum UserStatus {
   ACTIVE
   SUSPEND
   PENDING
+}
+
+enum TriggerScope {
+  ADMIN
+  SUPPORT
+  USER
 }

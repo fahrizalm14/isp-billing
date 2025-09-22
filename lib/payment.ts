@@ -3,8 +3,7 @@ import midtransClient from "midtrans-client";
 import { PaymentStatus } from "./generated/prisma";
 import { generatePaymentNumber } from "./numbering";
 import { prisma } from "./prisma";
-import { activateSubscription } from "./subscription";
-import { sendMessage } from "./whatsapp";
+import { runTriggers } from "./runTriggers";
 
 interface IGetPaymentLink {
   id: string;
@@ -87,12 +86,6 @@ export const billing = async ({
 
   if (!subscription) throw new Error("Langganan tidak tersedia!");
 
-  const expiredAt = await activateSubscription(
-    subscription.id,
-    subscription.dueDate,
-    subscription.expiredAt
-  );
-
   const payment = await prisma.payment.findFirst({
     where: { id },
   });
@@ -116,23 +109,7 @@ export const billing = async ({
     },
   });
 
-  // kirim wasap
-  const waMessage = `
-Halo *${
-    subscription.userProfile.name
-  }*, pembayaran langganan Anda telah *berhasil* ✅
-
-Detail pembayaran:
-- Nomor Langganan: ${subscription.number}
-- Paket: ${subscription.package.name}
-- Jumlah Bayar: Rp${subscription.package.price.toLocaleString()}
-- Tanggal Bayar: ${new Date().toLocaleDateString()}
-- Masa aktif: ${expiredAt}
-
-Terima kasih telah melakukan pembayaran tepat waktu 🙏
-Selamat menikmati layanan kami!
-`;
-  await sendMessage(subscription.userProfile.phone || "", waMessage);
+  await runTriggers("PAYMENT_SUCCESS", subscriptionId);
 };
 
 export function getNextDueDate(
@@ -207,19 +184,8 @@ export const generateInvoiceForSubscription = async (
   });
 
   // 🔥 Kirim WA setelah invoice dibuat
-  if (customer.phone) {
-    const message =
-      `Halo ${customer.name},\n\n` +
-      `Invoice baru untuk paket *${items[0].name}* sudah dibuat.\n\n` +
-      `Detail pembayaran:\n` +
-      `Nomor Langganan: ${invoice.subscription?.number}\n` +
-      `Total: Rp${amount.toLocaleString("id-ID")}\n` +
-      `Periode tagihan: ${formatDate(expiredAt)}.\n\n` +
-      `Bayar di sini: ${paymentLink}\n\n` +
-      `⚠️ Link pembayaran hanya berlaku 24 jam. Jika link sudah kadaluwarsa, silakan hubungi admin/teknisi untuk konfirmasi pembayaran.`;
 
-    await sendMessage(customer.phone, message);
-  }
+  await runTriggers("INVOICE_CREATED", subscriptionId);
 
   return invoice;
 };
@@ -284,19 +250,6 @@ export async function createPayment({
   });
 
   // todo whatsapp pelanggan (pendaftaran berhasil dan kirim link pembayaran)
-  const waMessage = `
-  Halo ${customerName}, pendaftaran langganan Anda berhasil ✅
-  
-  Detail paket:
-  - Nomor Langganan: ${number}
-  - Paket: ${packageName}
-  - Harga: Rp${amount.toLocaleString("id-ID")}
-  
-  Silakan lakukan pembayaran melalui link berikut:
-  ${paymentLink}
-  
-  Terima kasih 🙏
-      `;
 
-  await sendMessage(validPhoneNumber, waMessage);
+  await runTriggers("INVOICE_CREATED", subscriptionId);
 }

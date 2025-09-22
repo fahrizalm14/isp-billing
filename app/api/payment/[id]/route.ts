@@ -125,16 +125,7 @@ export async function POST(
     // proses update
     await billing({
       id,
-      // mikrotik: {
-      //   host: paymentDetail?.subscription?.package.router.ipAddress || "",
-      //   username: paymentDetail?.subscription?.package.router.apiUsername || "",
-      //   password: decrypt(
-      //     paymentDetail?.subscription?.package.router.apiPassword || ""
-      //   ),
-      //   port: Number(paymentDetail?.subscription?.package.router.port) || 22,
-      // },
       status: "SUCCESS",
-      // packageName: paymentDetail?.subscription?.package.name || "",
       subscriptionId: paymentDetail?.subscriptionId || "",
       transactionId,
     });
