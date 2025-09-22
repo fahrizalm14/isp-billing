@@ -14,10 +14,18 @@ export function fillTemplate(
   template: string,
   context: TemplateContext
 ): string {
-  return template.replace(/{{(.*?)}}/g, (_, key) => {
+  let result = template.replace(/{{(.*?)}}/g, (_, key) => {
     const value = (context as Record<string, string>)[key.trim()];
     return value ?? "";
   });
+
+  // Hapus baris yang cuma spasi/tab
+  result = result.replace(/^[ \t]+$/gm, "");
+
+  // Normalisasi newline: maksimal 1
+  result = result.replace(/\n{2,}/g, "\n");
+
+  return result.trim(); // opsional: buang newline awal/akhir
 }
 
 export const dummyContext = {
