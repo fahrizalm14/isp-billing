@@ -22,10 +22,10 @@ export function fillTemplate(
   // Hapus baris yang cuma spasi/tab
   result = result.replace(/^[ \t]+$/gm, "");
 
-  // Normalisasi newline: maksimal 1
-  result = result.replace(/\n{2,}/g, "\n");
+  // Ganti multiple newline jadi 2 maksimal (biar masih ada jarak paragraf)
+  result = result.replace(/\n{3,}/g, "\n\n");
 
-  return result.trim(); // opsional: buang newline awal/akhir
+  return result.trim();
 }
 
 export const dummyContext = {
