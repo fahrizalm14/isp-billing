@@ -14,7 +14,7 @@ const OdpSchema = z.object({
   longitude: z.string().optional(),
   latitude: z.string().optional(),
   region: z.string().min(1, "Wilayah wajib diisi"),
-  capacity: z.number().min(1, "Kapasitas wajib diisi"),
+  capacity: z.string().min(1, "Kapasitas wajib diisi"),
   routerId: z.string().min(1, "Router ID wajib diisi"),
 });
 
@@ -55,7 +55,7 @@ export default function OdpFormModal({
       longitude: "",
       latitude: "",
       region: "",
-      capacity: 1,
+      capacity: "1",
       routerId: "",
     },
   });
@@ -73,7 +73,7 @@ export default function OdpFormModal({
           longitude: "",
           latitude: "",
           region: "",
-          capacity: 1,
+          capacity: "1",
           routerId: "",
         }
       );
@@ -90,7 +90,7 @@ export default function OdpFormModal({
         longitude: "",
         latitude: "",
         region: "",
-        capacity: 1,
+        capacity: "1",
         routerId: "",
       });
     }
@@ -104,7 +104,10 @@ export default function OdpFormModal({
         {
           method: isEdit ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
+          body: JSON.stringify({
+            ...data,
+            capacity: parseInt(data.capacity || "1"),
+          }),
         }
       );
 

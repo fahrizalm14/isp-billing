@@ -2,6 +2,7 @@
 "use client";
 
 import { showConfirm, SwalToast } from "@/components/SweetAlert";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import Loader from "@/components/ui/custom/loader";
 import UserFormModal, { UserFormData } from "@/components/UserFormModal";
 import { useEffect, useState } from "react";
@@ -29,6 +30,11 @@ export default function UserManagement() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [editUser, setEditUser] = useState<User | null>(null);
+  const [userDelete, setUserDelete] = useState({
+    id: "",
+    name: "",
+    open: false,
+  });
 
   const fetchUsers = async () => {
     try {
@@ -204,13 +210,6 @@ export default function UserManagement() {
   };
 
   const handleDeleteOne = async (userId: string) => {
-    const confirm = await showConfirm(
-      "Yakin ingin menghapus user ini?",
-      "warning",
-      true
-    );
-    if (!confirm) return;
-
     try {
       setLoading(true);
       const res = await fetch(`/api/users/${userId}`, {
@@ -250,7 +249,7 @@ export default function UserManagement() {
             >
               + Tambah User
             </button>
-            <button
+            {/* <button
               onClick={handleActivate}
               className="bg-primary text-white hover:bg-primary/90 px-4 py-1 rounded w-full md:w-auto"
             >
@@ -261,11 +260,12 @@ export default function UserManagement() {
               className="bg-popover text-popover-foreground px-4 py-1 rounded hover:bg-popover/90 w-full md:w-auto"
             >
               Nonaktifkan
-            </button>
+            </button> */}
           </div>
 
           <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
             <select
+              title="selectPageLimit"
               value={limit}
               onChange={(e) => {
                 setLimit(Number(e.target.value));
@@ -305,6 +305,7 @@ export default function UserManagement() {
               <tr className="text-left">
                 <th className="px-4 py-2">
                   <input
+                    title="checkBoxPackage"
                     type="checkbox"
                     checked={selectedUsers.length === users.length}
                     onChange={toggleAll}
@@ -325,6 +326,7 @@ export default function UserManagement() {
                 >
                   <td className="px-4 py-2">
                     <input
+                      title="checkBoxSelectedUser"
                       type="checkbox"
                       checked={selectedUsers.includes(user.id)}
                       onChange={() => toggleSelect(user.id)}
@@ -352,14 +354,23 @@ export default function UserManagement() {
                   </td>
                   <td className="px-4 py-2 flex items-center gap-2">
                     <button
+                      title="Edit"
                       className="bg-primary text-primary-foreground p-2 rounded hover:bg-primary/90"
                       onClick={() => handleEditUser(user)}
                     >
                       <FaEdit className="w-4 h-4" />
                     </button>
                     <button
+                      title="Hapus"
+                      disabled={users.length === 1}
                       className="bg-destructive text-destructive-foreground p-2 rounded hover:bg-destructive/90"
-                      onClick={() => handleDeleteOne(user.id)}
+                      onClick={() =>
+                        setUserDelete({
+                          id: user.id,
+                          name: user.name,
+                          open: true,
+                        })
+                      }
                     >
                       <FaTrash className="w-4 h-4" />
                     </button>
@@ -410,6 +421,25 @@ export default function UserManagement() {
               }
             : undefined
         }
+      />
+      <ConfirmDialog
+        open={userDelete.open}
+        onOpenChange={(change) =>
+          setUserDelete((_prev) => ({ ..._prev, open: change }))
+        }
+        title="Hapus item?"
+        description={
+          <>
+            Tindakan ini tidak bisa dibatalkan. Untuk mengkonfirmasi, ketik nama
+            item persis.
+          </>
+        }
+        requiredText={userDelete.name}
+        matchMode="iequals" // tidak case sensitive
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        tone="danger"
+        onConfirm={() => handleDeleteOne(userDelete.id)}
       />
     </>
   );

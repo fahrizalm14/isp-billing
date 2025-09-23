@@ -3,7 +3,8 @@
 import CashflowDetailModal from "@/components/CashflowDetailModal";
 import CashflowExportModal from "@/components/CashflowExportModal";
 import CashflowFormModal from "@/components/CashflowFormModal";
-import { SwalToast, showConfirm } from "@/components/SweetAlert";
+import { SwalToast } from "@/components/SweetAlert";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import Loader from "@/components/ui/custom/loader";
 import {
   Table,
@@ -43,6 +44,12 @@ export default function CashflowPage() {
   const [detailModal, setDetailModal] = useState({ id: "", open: false });
   const [exportModal, setExportModal] = useState(false);
 
+  const [deleteCashFlow, setDeleteCashFlow] = useState({
+    id: "",
+    name: "",
+    open: false,
+  });
+
   useEffect(() => {
     fetchCashflows();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -69,13 +76,6 @@ export default function CashflowPage() {
 
   // Delete
   const handleDelete = async (id: string) => {
-    const confirm = await showConfirm(
-      "Yakin ingin menghapus catatan ini?",
-      "warning",
-      true
-    );
-    if (!confirm) return;
-
     setLoading(true);
     try {
       const res = await fetch(`/api/cash-flow/${id}`, { method: "DELETE" });
@@ -184,7 +184,13 @@ export default function CashflowPage() {
                   <button
                     title="btnDeleteCashFlow"
                     className="bg-secondary text-white p-2 rounded hover:bg-secondary/70"
-                    onClick={() => handleDelete(cf.id)}
+                    onClick={() =>
+                      setDeleteCashFlow({
+                        id: cf.id,
+                        name: `${cf.amount}`,
+                        open: true,
+                      })
+                    }
                   >
                     <FaTrash className="w-4 h-4" />
                   </button>
@@ -251,6 +257,26 @@ export default function CashflowPage() {
             "_blank"
           );
         }}
+      />
+
+      <ConfirmDialog
+        open={deleteCashFlow.open}
+        onOpenChange={(change) =>
+          setDeleteCashFlow((_prev) => ({ ..._prev, open: change }))
+        }
+        title="Hapus item?"
+        description={
+          <>
+            Tindakan ini tidak bisa dibatalkan. Untuk mengkonfirmasi, ketik nama
+            item persis.
+          </>
+        }
+        requiredText={deleteCashFlow.name}
+        matchMode="equals" // tidak case sensitive
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        tone="danger"
+        onConfirm={() => handleDelete(deleteCashFlow.id)}
       />
     </>
   );

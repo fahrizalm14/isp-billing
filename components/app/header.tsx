@@ -7,32 +7,37 @@ import { UserNav } from "./usernav";
 
 export default function Header() {
   const { toggleCollapse, invokeToggleCollapse } = useSideBarToggle();
-  const sidebarToggle = () => {
-    invokeToggleCollapse();
-  };
+
   const headerStyle = classNames(
-    "bg-sidebar fixed w-full z-[99997] px-4 shadow-sm shadow-slate-500/40",
-    {
-      ["sm:pl-[20rem]"]: !toggleCollapse,
-      ["sm:pl-[5.6rem]"]: toggleCollapse,
-    }
+    // sticky
+    "sticky top-0 z-[999] w-full bg-sidebar/95 backdrop-blur supports-[backdrop-filter]:bg-sidebar/75",
+    "border-b",
+    // ⬇️ margin-bottom hanya di mobile
+    "mb-20 sm:mb-0",
+    // padding kiri kompensasi sidebar di ≥sm
+    !toggleCollapse ? "sm:pl-[20rem]" : "sm:pl-[5.6rem]"
   );
+
   return (
     <header className={headerStyle}>
-      <div className="h-16 flex items-center justify-between">
+      <div className="h-16 px-4 flex items-center justify-between">
         <button
-          title="btnSidebarList"
-          onClick={sidebarToggle}
-          className="order-2 sm:order-1 shrink-btn float-right bg-sidebar-muted text-sidebar-muted-foreground hover:bg-foreground hover:text-background ml-3 rounded-md w-[30px] h-[30px] flex items-center justify-center shadow-md shadow-black/10  transition duration-300 ease-in-out"
+          title="Toggle sidebar"
+          onClick={invokeToggleCollapse}
+          className="inline-flex items-center justify-center rounded-md w-9 h-9
+                     bg-sidebar-muted text-sidebar-muted-foreground
+                     hover:bg-foreground hover:text-background
+                     shadow-md shadow-black/10 transition"
+          aria-label="Toggle sidebar"
         >
-          <BsList />
+          <BsList className="w-5 h-5" />
         </button>
 
-        <div className="flex items-center justify-between sm:order-2 order-1">
-          <div className="p-2">
-            <ThemeSwitcher></ThemeSwitcher>
+        <div className="flex items-center gap-2">
+          <div className="p-1">
+            <ThemeSwitcher />
           </div>
-          <div className="h-10 w-10 rounded-full bg-sidebar-muted flex items-center justify-center text-center">
+          <div className="h-9 w-9 rounded-full bg-sidebar-muted flex items-center justify-center">
             <UserNav />
           </div>
         </div>

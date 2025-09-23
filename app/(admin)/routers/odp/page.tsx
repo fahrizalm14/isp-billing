@@ -2,7 +2,7 @@
 
 import OdpFormModal, { OdpInput } from "@/components/OdpFormModal";
 import { OdpMapData } from "@/components/OdpMap";
-import { showConfirm, SwalToast } from "@/components/SweetAlert";
+import { SwalToast } from "@/components/SweetAlert";
 import {
   Card,
   CardContent,
@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import Loader from "@/components/ui/custom/loader";
 import {
   Table,
@@ -26,12 +27,12 @@ import { FaSyncAlt } from "react-icons/fa";
 
 function convertOdps(oldOdps: OdpInput[]): OdpMapData[] {
   return oldOdps
-    .filter((odp) => odp.latitude && odp.longitude) // pastikan data koordinat ada
+    .filter((odp) => odp.latitude && odp.longitude)
     .map((odp) => ({
       id: odp.id ?? odp.routerId,
       name: odp.name,
       coordinate: `${odp.latitude},${odp.longitude}`,
-      portCapacity: odp.capacity,
+      portCapacity: parseInt(odp.capacity || "0"),
       districtName: odp.region,
     }));
 }
@@ -45,7 +46,7 @@ export type IResOdp = {
   region: string;
   capacity: number;
   routerId?: string;
-  usedPort?: number; // ✅ tambahkan ini
+  usedPort?: number;
 };
 
 export default function OdpListPage() {
@@ -56,6 +57,11 @@ export default function OdpListPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedOdp, setSelectedOdp] = useState<OdpInput | null>(null);
   const [odps, setOdps] = useState<IResOdp[]>([]);
+  const [odp, setOdp] = useState({
+    id: "",
+    name: "",
+    open: false,
+  });
 
   useEffect(() => {
     fetchData();
@@ -71,8 +77,8 @@ export default function OdpListPage() {
         )}&page=${page}&limit=15`
       );
       const json = await res.json();
-      setOdps(json.data); // asumsi: json.data adalah array of odp
-      setTotalPages(Math.ceil(json.total / 15));
+      setOdps(json.data ?? []);
+      setTotalPages(Math.max(1, Math.ceil((json.total ?? 0) / 15)));
     } catch (error) {
       console.error("Gagal fetch data ODP", error);
     } finally {
@@ -81,35 +87,22 @@ export default function OdpListPage() {
   };
 
   const handleDeleteOne = async (odpId: string) => {
-    const confirm = await showConfirm(
-      "Yakin ingin menghapus odp ini?",
-      "warning",
-      true
-    );
-    if (!confirm) return;
-
     try {
       setLoading(true);
-      const res = await fetch(`/api/router/odp/${odpId}`, {
-        method: "DELETE",
-      });
-
+      const res = await fetch(`/api/router/odp/${odpId}`, { method: "DELETE" });
       const result = await res.json();
 
       if (res.ok) {
-        SwalToast.fire({
-          icon: "success",
-          title: "Odp berhasil dihapus!",
-        });
+        SwalToast.fire({ icon: "success", title: "ODP berhasil dihapus!" });
         fetchData();
       } else {
-        throw new Error(result.error || "Gagal menghapus odp.");
+        throw new Error(result?.error || "Gagal menghapus ODP.");
       }
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       SwalToast.fire({
         icon: "error",
-        title: "Terjadi kesalahan saat menghapus user",
+        title: "Terjadi kesalahan saat menghapus ODP",
       });
     } finally {
       setLoading(false);
@@ -117,155 +110,249 @@ export default function OdpListPage() {
   };
 
   const OdpMap = dynamic(
-    () => import("@/components/OdpMap").then((mod) => mod.OdpMap),
-    { ssr: false }
+    () => import("@/components/OdpMap").then((m) => m.OdpMap),
+    {
+      ssr: false,
+    }
   );
 
   return (
     <>
-      <div className="p-6">
-        <h2 className="text-xl font-semibold">Optical Distribution Point</h2>
-        <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-7">
-          <div className="lg:col-span-3">
-            <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 mb-4 flex-wrap">
-              {/* Kiri - Tambah ODP */}
+      <div className="px-4 sm:px-6 py-6">
+        <h2 className="text-xl font-semibold mb-4">
+          Optical Distribution Point
+        </h2>
+
+        <div className="grid gap-4 lg:grid-cols-7">
+          {/* KIRI: daftar & kontrol */}
+          <div className="lg:col-span-3 min-w-0">
+            {/* Toolbar */}
+            <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <button
-                className="bg-primary text-white px-3 py-2 rounded hover:bg-primary/90 flex items-center justify-center gap-2 w-full sm:w-auto"
+                className="bg-primary text-primary-foreground px-3 py-2 rounded hover:bg-primary/90 w-full sm:w-auto"
                 onClick={() => {
                   setSelectedOdp(null);
                   setModalOpen(true);
                 }}
               >
-                +
+                + Tambah ODP
               </button>
 
-              {/* Kanan - Search & Refresh */}
-              <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
                 <input
                   type="text"
-                  placeholder="Search odp..."
+                  placeholder="Cari ODP…"
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
                   className="border rounded px-3 py-2 w-full sm:w-64"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") fetchData();
+                  }}
                 />
                 <button
-                  className="bg-primary text-white px-3 py-2 rounded hover:bg-primary/90 flex items-center justify-center gap-2 w-full sm:w-auto"
+                  className="bg-secondary text-secondary-foreground px-3 py-2 rounded hover:bg-secondary/90 flex items-center justify-center gap-2 w-full sm:w-auto"
                   title="Refresh data"
                   onClick={fetchData}
                 >
                   <FaSyncAlt className="shrink-0" />
-                  Refresh
+                  <span className="hidden sm:inline">Refresh</span>
                 </button>
               </div>
             </div>
 
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-center">No</TableHead>
-                    <TableHead>Nama</TableHead>
-                    <TableHead>Lokasi</TableHead>
-                    <TableHead>Wilayah</TableHead>
-                    <TableHead>Penggunaan</TableHead>
-                    <TableHead className="px-4 py-2 text-center">
-                      Aksi
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {odps.length === 0 ? (
-                    <TableRow>
-                      <td colSpan={6} className="text-center py-4">
-                        Tidak ada data ODP.
-                      </td>
-                    </TableRow>
-                  ) : (
-                    odps.map((_odp, index) => (
-                      <TableRow key={_odp.id}>
-                        <TableCell className="text-center">
-                          {(page - 1) * 15 + index + 1}
-                        </TableCell>
-                        <TableCell>{_odp.name}</TableCell>
-                        <TableCell>{_odp.location}</TableCell>
-                        <TableCell>{_odp.region}</TableCell>
-                        <TableCell>
-                          {_odp.usedPort} / {_odp.capacity}
-                        </TableCell>
-                        <TableCell className="text-center space-x-2">
-                          <button
-                            className="text-sm text-blue-600 hover:underline"
-                            onClick={() => {
-                              setSelectedOdp({
-                                capacity: _odp.capacity,
-                                location: _odp.location,
-                                name: _odp.name,
-                                region: _odp.region,
-                                routerId: _odp.routerId!,
-                                id: _odp.id,
-                                latitude: _odp.latitude!,
-                                longitude: _odp.longitude,
-                              });
-                              setModalOpen(true);
-                            }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className="text-sm text-gray-600 hover:underline"
-                            onClick={() => {
-                              handleDeleteOne(_odp.id!);
-                            }}
-                          >
-                            Hapus
-                          </button>
-                          {/* Tambahkan tombol delete jika perlu */}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+            {/* LIST MOBILE (cards) */}
+            <div className="sm:hidden space-y-3">
+              {odps.length === 0 ? (
+                <Card>
+                  <CardContent className="py-6 text-center">
+                    Tidak ada data ODP.
+                  </CardContent>
+                </Card>
+              ) : (
+                odps.map((_odp, index) => (
+                  <Card key={_odp.id ?? index}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">{_odp.name}</CardTitle>
+                      <CardDescription>{_odp.location}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-sm grid grid-cols-2 gap-y-1">
+                      <div className="text-muted-foreground">Wilayah</div>
+                      <div>{_odp.region}</div>
+                      <div className="text-muted-foreground">Penggunaan</div>
+                      <div>
+                        {_odp.usedPort} / {_odp.capacity}
+                      </div>
+                    </CardContent>
+                    <CardFooter className="pt-2 flex justify-end gap-4">
+                      <button
+                        className="text-blue-600 hover:underline"
+                        onClick={() => {
+                          setSelectedOdp({
+                            capacity: `${_odp.capacity}`,
+                            location: _odp.location,
+                            name: _odp.name,
+                            region: _odp.region,
+                            routerId: _odp.routerId!,
+                            id: _odp.id,
+                            latitude: _odp.latitude!,
+                            longitude: _odp.longitude,
+                          });
+                          setModalOpen(true);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-gray-600 hover:underline"
+                        onClick={() =>
+                          setOdp({ id: _odp.id!, name: _odp.name, open: true })
+                        }
+                      >
+                        Hapus
+                      </button>
+                    </CardFooter>
+                  </Card>
+                ))
+              )}
+            </div>
 
-              <div className="mt-4 flex justify-between items-center">
-                <span>
-                  Page {page} of {totalPages}
-                </span>
-                <div className="space-x-2">
-                  <button
-                    onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                    disabled={page === 1}
-                    className="bg-muted px-3 py-1 rounded disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() =>
-                      setPage((prev) => Math.min(prev + 1, totalPages))
-                    }
-                    disabled={page === totalPages}
-                    className="bg-muted px-3 py-1 rounded disabled:opacity-50"
-                  >
-                    Next
-                  </button>
+            {/* LIST DESKTOP (table) */}
+            <div className="hidden sm:block">
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle">
+                  <div className="overflow-hidden border rounded">
+                    <Table className="min-w-[720px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-center w-14">No</TableHead>
+                          <TableHead>Nama</TableHead>
+                          <TableHead>Lokasi</TableHead>
+                          <TableHead className="whitespace-nowrap">
+                            Wilayah
+                          </TableHead>
+                          <TableHead className="whitespace-nowrap">
+                            Penggunaan
+                          </TableHead>
+                          <TableHead className="text-center w-40">
+                            Aksi
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {odps.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-6">
+                              Tidak ada data ODP.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          odps.map((_odp, index) => (
+                            <TableRow key={_odp.id ?? index}>
+                              <TableCell className="text-center">
+                                {(page - 1) * 15 + index + 1}
+                              </TableCell>
+                              <TableCell className="max-w-[220px] truncate">
+                                {_odp.name}
+                              </TableCell>
+                              <TableCell className="max-w-[260px] truncate">
+                                {_odp.location}
+                              </TableCell>
+                              <TableCell className="max-w-[180px] truncate">
+                                {_odp.region}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                {_odp.usedPort} / {_odp.capacity}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex justify-center gap-3">
+                                  <button
+                                    className="text-blue-600 hover:underline"
+                                    onClick={() => {
+                                      setSelectedOdp({
+                                        capacity: `${_odp.capacity}`,
+                                        location: _odp.location,
+                                        name: _odp.name,
+                                        region: _odp.region,
+                                        routerId: _odp.routerId!,
+                                        id: _odp.id,
+                                        latitude: _odp.latitude!,
+                                        longitude: _odp.longitude,
+                                      });
+                                      setModalOpen(true);
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    className="text-gray-600 hover:underline"
+                                    onClick={() =>
+                                      setOdp({
+                                        id: _odp.id!,
+                                        name: _odp.name,
+                                        open: true,
+                                      })
+                                    }
+                                  >
+                                    Hapus
+                                  </button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               </div>
-            </>
-          </div>{" "}
-          <div className="col-span-1 lg:col-span-4">
-            <Card>
+            </div>
+
+            {/* Pagination */}
+            <div className="mt-4 flex flex-wrap gap-2 items-center justify-between">
+              <span className="text-sm">
+                Page {page} of {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={page === 1}
+                  className="bg-muted px-3 py-1 rounded disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() =>
+                    setPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={page === totalPages}
+                  className="bg-muted px-3 py-1 rounded disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* KANAN: Peta */}
+          <div className="lg:col-span-4 min-w-0">
+            <Card className="h-full overflow-visible">
+              {" "}
+              {/* <-- penting */}
               <CardHeader>
                 <CardTitle>Pemetaan</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="h-96">
+              {/* izinkan anak “keluar” */}
+              <CardContent className="overflow-visible p-0">
+                {" "}
+                {/* <-- penting */}
+                <div className="relative z-10 h-[50vh] min-h-[300px] max-h-[600px]">
                   <OdpMap
                     data={convertOdps(
                       odps.map((_odp) => ({
-                        capacity: _odp.capacity,
+                        capacity: `${_odp.capacity}`,
                         location: _odp.location,
                         name: _odp.name,
                         region: _odp.region,
@@ -278,19 +365,18 @@ export default function OdpListPage() {
                   />
                 </div>
               </CardContent>
-              <CardFooter>
-                <CardDescription>
-                  Peta di atas menampilkan lokasi dan kapasitas ODP (Optical
-                  Distribution Point) yang tersedia di wilayah layanan. Setiap
-                  titik pada peta menunjukkan posisi ODP dengan informasi
-                  kapasitas port dan wilayah distriknya.
+              <CardFooter className="overflow-visible">
+                <CardDescription className="text-xs sm:text-sm">
+                  Peta menampilkan lokasi & kapasitas ODP di wilayah layanan.
                 </CardDescription>
               </CardFooter>
             </Card>
           </div>
         </div>
       </div>
+
       <Loader loading={loading} />
+
       <OdpFormModal
         show={modalOpen}
         onClose={() => {
@@ -299,6 +385,26 @@ export default function OdpListPage() {
         }}
         onSuccess={fetchData}
         initialData={selectedOdp ?? undefined}
+      />
+
+      <ConfirmDialog
+        open={odp.open}
+        onOpenChange={(change) =>
+          setOdp((_prev) => ({ ..._prev, open: change }))
+        }
+        title="Hapus item?"
+        description={
+          <>
+            Tindakan ini tidak bisa dibatalkan. Untuk mengkonfirmasi, ketik nama
+            item persis.
+          </>
+        }
+        requiredText={odp.name}
+        matchMode="equals" // tidak case sensitive
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        tone="danger"
+        onConfirm={() => handleDeleteOne(odp.id)}
       />
     </>
   );

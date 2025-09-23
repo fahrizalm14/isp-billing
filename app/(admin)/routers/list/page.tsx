@@ -2,7 +2,8 @@
 
 import ConnectionTestModal from "@/components/ConnectionTestModal";
 import RouterFormModal from "@/components/RouterFormModal";
-import { showConfirm, SwalToast } from "@/components/SweetAlert";
+import { SwalToast } from "@/components/SweetAlert";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import Loader from "@/components/ui/custom/loader";
 import {
   Table,
@@ -42,6 +43,12 @@ export default function RouterListPage() {
   );
 
   const [connectionModal, setConnectionModal] = useState(false);
+  const [router, setRouter] = useState({
+    id: "",
+    name: "",
+    open: false,
+    type: "delete",
+  });
 
   const fetchRouters = useCallback(
     async (page = 1) => {
@@ -80,13 +87,6 @@ export default function RouterListPage() {
   };
 
   const handleDeleteOne = async (routerId: string) => {
-    const confirm = await showConfirm(
-      "Yakin ingin menghapus router ini?",
-      "warning",
-      true
-    );
-    if (!confirm) return;
-
     try {
       setLoading(true);
       const res = await fetch(`/api/router/${routerId}`, {
@@ -117,7 +117,7 @@ export default function RouterListPage() {
 
   return (
     <>
-      <div className="p-6">
+      <div>
         <h2 className="text-xl font-semibold">Router Management</h2>
         <div className="flex flex-col md:flex-row justify-between mt-4 mb-2 items-start md:items-center gap-2">
           {/* Kiri - Tombol Tambah */}
@@ -194,34 +194,54 @@ export default function RouterListPage() {
                   <TableCell>
                     {new Date(_router.updatedAt).toLocaleString("id-ID")}
                   </TableCell>
-                  <TableCell className="px-4 py-2 text-center">
-                    <button
-                      title="setSelectedRouter"
-                      className="bg-secondary text-primary-foreground p-2 rounded hover:bg-secondary/90 mr-2"
-                      onClick={() => {
-                        setSelectedRouter({ ..._router, apiPassword: "" });
-                        setConnectionModal(true);
-                      }}
-                    >
-                      <FaWifi className="w-4 h-4" />
-                    </button>
-                    <button
-                      title="setSelectedRouter"
-                      className="bg-primary text-primary-foreground p-2 rounded hover:bg-primary/90 mr-2"
-                      onClick={() => {
-                        setSelectedRouter({ ..._router, apiPassword: "" });
-                        setModalOpen(true);
-                      }}
-                    >
-                      <FaEdit className="w-4 h-4" />
-                    </button>
-                    <button
-                      title="handleDeleteOne"
-                      className="bg-destructive text-destructive-foreground p-2 rounded hover:bg-destructive/90"
-                      onClick={() => handleDeleteOne(_router.id)}
-                    >
-                      <FaTrash className="w-4 h-4" />
-                    </button>
+                  <TableCell className="px-2 py-2">
+                    <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2">
+                      <button
+                        type="button"
+                        aria-label="Koneksi router"
+                        title="Koneksi router"
+                        className="inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-2 py-2 sm:px-3 rounded hover:bg-secondary/90"
+                        onClick={() => {
+                          setSelectedRouter({ ..._router, apiPassword: "" });
+                          setConnectionModal(true);
+                        }}
+                      >
+                        <FaWifi className="w-4 h-4 shrink-0" />
+                        <span className="hidden sm:inline">Connect</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        aria-label="Edit router"
+                        title="Edit router"
+                        className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-2 py-2 sm:px-3 rounded hover:bg-primary/90"
+                        onClick={() => {
+                          setSelectedRouter({ ..._router, apiPassword: "" });
+                          setModalOpen(true);
+                        }}
+                      >
+                        <FaEdit className="w-4 h-4 shrink-0" />
+                        <span className="hidden sm:inline">Edit</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        aria-label="Hapus router"
+                        title="Hapus router"
+                        className="inline-flex items-center gap-2 bg-destructive text-destructive-foreground px-2 py-2 sm:px-3 rounded hover:bg-destructive/90"
+                        onClick={() => {
+                          setRouter({
+                            id: _router.id,
+                            name: _router.name,
+                            open: true,
+                            type: "delete",
+                          });
+                        }}
+                      >
+                        <FaTrash className="w-4 h-4 shrink-0" />
+                        <span className="hidden sm:inline">Hapus</span>
+                      </button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -272,6 +292,25 @@ export default function RouterListPage() {
           fetchRouters(page);
         }}
         data={selectedRouter}
+      />
+      <ConfirmDialog
+        open={router.open}
+        onOpenChange={(change) =>
+          setRouter((_prev) => ({ ..._prev, open: change }))
+        }
+        title="Hapus item?"
+        description={
+          <>
+            Tindakan ini tidak bisa dibatalkan. Untuk mengkonfirmasi, ketik nama
+            item persis.
+          </>
+        }
+        requiredText={router.name}
+        matchMode="equals" // tidak case sensitive
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        tone="danger"
+        onConfirm={() => handleDeleteOne(router.id)}
       />
     </>
   );

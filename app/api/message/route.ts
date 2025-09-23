@@ -3,11 +3,29 @@ import { fillTemplate } from "@/types/helper";
 import { NextRequest, NextResponse } from "next/server";
 import z from "zod/v3";
 
-const createMessageSchema = z.object({
-  messageType: z.enum(["all", "direct"]),
-  user: z.string().optional(), // subscriptionId kalau direct
-  content: z.string().min(1, "Content cannot be empty"), // ini template
-});
+const createMessageSchema = z
+  .object({
+    messageType: z.enum(["all", "direct", "odp"]),
+    user: z.string().optional(), // subscriptionId kalau direct
+    odp: z.string().optional(), // odpId kalau type=odp
+    content: z.string().min(1, "Content cannot be empty"), // ini template
+  })
+  .superRefine((data, ctx) => {
+    if (data.messageType === "direct" && !data.user) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "User is required if message type is direct",
+        path: ["user"],
+      });
+    }
+    if (data.messageType === "odp" && !data.odp) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "ODP is required if message type is odp",
+        path: ["odp"],
+      });
+    }
+  });
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,12 +42,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { messageType, user, content } = parsed.data;
+    const { messageType, user, odp, content } = parsed.data;
 
+    /* ========== DIRECT ========== */
     if (messageType === "direct") {
-      if (!user)
-        return NextResponse.json({ message: "User required" }, { status: 400 });
-
       const subs = await prisma.subscription.findUnique({
         where: { id: user },
         include: { userProfile: true, package: true, usersPPPOE: true },
@@ -65,6 +81,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    /* ========== ALL ========== */
     if (messageType === "all") {
       const subsList = await prisma.subscription.findMany({
         include: { userProfile: true, package: true },
@@ -91,6 +108,52 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         { message: `Queued for ${messages.length} users`, data: messages },
+        { status: 201 }
+      );
+    }
+
+    /* ========== ODP ========== */
+    if (messageType === "odp") {
+      const subsList = await prisma.subscription.findMany({
+        where: { odpId: odp },
+        include: { userProfile: true, package: true, usersPPPOE: true },
+      });
+
+      if (!subsList.length) {
+        return NextResponse.json(
+          { message: "No subscription found for this ODP" },
+          { status: 404 }
+        );
+      }
+
+      const messages = await prisma.$transaction(
+        subsList
+          .filter((s) => s.userProfile?.phone)
+          .map((s) =>
+            prisma.message.create({
+              data: {
+                triggerKey: null,
+                toNumber: s.userProfile!.phone!,
+                content: fillTemplate(content, {
+                  nama: s.userProfile?.name,
+                  paket: s.package.name,
+                  noLangganan: s.number,
+                  userPPP: s.usersPPPOE.length ? s.usersPPPOE[0].username : "",
+                  passwordPPP: s.usersPPPOE.length
+                    ? s.usersPPPOE[0].password
+                    : "",
+                }),
+                status: "QUEUED",
+              },
+            })
+          )
+      );
+
+      return NextResponse.json(
+        {
+          message: `Queued for ${messages.length} users in ODP`,
+          data: messages,
+        },
         { status: 201 }
       );
     }

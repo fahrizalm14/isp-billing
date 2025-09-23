@@ -26,8 +26,8 @@ export default function MessagingDashboard() {
 
   return (
     <>
-      <div className="p-4 bg-background text-foreground min-h-screen">
-        <div className="grid gap-6 md:grid-cols-12 h-full">
+      <div className="p-4 bg-background text-foreground">
+        <div className="grid gap-6 md:grid-cols-12">
           {/* ===== Left (wide) column ===== */}
           <div className="md:col-span-8 space-y-6 mb-6">
             <FormMessages templates={templates} />
@@ -36,12 +36,7 @@ export default function MessagingDashboard() {
           </div>
 
           {/* ===== Right (narrow) column ===== */}
-          <div
-            className="
-        md:col-span-4 space-y-6
-        md:overflow-y-auto md:max-h-[calc(100vh-2rem)]
-      "
-          >
+          <div className="md:col-span-4 space-y-6">
             <ConfigMessage />
             <TemplateMessages {...{ setTemplates, templates }} />
           </div>

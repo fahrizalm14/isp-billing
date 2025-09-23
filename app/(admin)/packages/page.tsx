@@ -1,7 +1,8 @@
 "use client";
 
 import PackageFormModal, { PackageForm } from "@/components/PackageFormModal";
-import { showConfirm, SwalToast } from "@/components/SweetAlert";
+import { SwalToast } from "@/components/SweetAlert";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import Loader from "@/components/ui/custom/loader";
 import {
   Table,
@@ -45,6 +46,11 @@ export default function PackagesPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [routers, setRouters] = useState<Router[]>([]);
+  const [deletePackage, setDeletePackage] = useState({
+    id: "",
+    name: "",
+    open: false,
+  });
 
   // Ambil router list dari /api/router
   useEffect(() => {
@@ -92,14 +98,6 @@ export default function PackagesPage() {
   }, [page]);
 
   const handleDelete = async (packageId: string) => {
-    const confirm = await showConfirm(
-      "Yakin ingin menghapus package ini?",
-      "warning",
-      true
-    );
-
-    if (!confirm) return;
-
     try {
       setLoading(true);
 
@@ -209,9 +207,9 @@ export default function PackagesPage() {
                     {pkg.active ? "Aktif" : "Nonaktif"}
                   </span>
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-4 py-2 flex items-center gap-2">
                   <button
-                    title="btnEdit"
+                    title="edit"
                     className="p-2 bg-primary text-white rounded mr-2"
                     onClick={() => {
                       setSelectedPackage({
@@ -225,9 +223,15 @@ export default function PackagesPage() {
                     <FaEdit />
                   </button>
                   <button
-                    title="handleDelete"
+                    title="hapus"
                     className="p-2 bg-destructive text-white rounded"
-                    onClick={() => handleDelete(pkg.id)}
+                    onClick={() =>
+                      setDeletePackage({
+                        id: pkg.id,
+                        name: pkg.name,
+                        open: true,
+                      })
+                    }
                   >
                     <FaTrash />
                   </button>
@@ -270,6 +274,26 @@ export default function PackagesPage() {
         />
       </div>
       <Loader loading={loading} />
+
+      <ConfirmDialog
+        open={deletePackage.open}
+        onOpenChange={(change) =>
+          setDeletePackage((_prev) => ({ ..._prev, open: change }))
+        }
+        title="Hapus item?"
+        description={
+          <>
+            Tindakan ini tidak bisa dibatalkan. Untuk mengkonfirmasi, ketik nama
+            item persis.
+          </>
+        }
+        requiredText={deletePackage.name}
+        matchMode="iequals" // tidak case sensitive
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        tone="danger"
+        onConfirm={() => handleDelete(deletePackage.id)}
+      />
     </>
   );
 }

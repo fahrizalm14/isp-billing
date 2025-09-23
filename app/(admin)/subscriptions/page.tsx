@@ -2,8 +2,9 @@
 
 import SubscriptionDetailModal from "@/components/SubscriptionDetailModal";
 import SubscriptionFormModal from "@/components/SubscriptionFormModal";
-import { SwalToast, showConfirm } from "@/components/SweetAlert";
+import { SwalToast } from "@/components/SweetAlert";
 import { Button } from "@/components/ui/button";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import Loader from "@/components/ui/custom/loader";
 import {
   Dialog,
@@ -62,6 +63,14 @@ export default function SubscriptionPage() {
 
   // ✅ Dialog bypass isolir
   const [bypassDialog, setBypassDialog] = useState(false);
+
+  const [subsAction, setSubsAction] = useState({
+    id: "",
+    name: "",
+    type: "",
+    open: false,
+    status: false,
+  });
 
   useEffect(() => {
     fetchSubscriptions();
@@ -154,16 +163,6 @@ export default function SubscriptionPage() {
   };
 
   const handleSingleActivate = async (id: string, status: boolean) => {
-    const confirm = await showConfirm(
-      "Eiitts..",
-      "question",
-      true,
-      `Kamu yakin akan ${
-        status ? "Menonaktifkan" : "Mengaktifkan"
-      } langganan ini?`
-    );
-
-    if (!confirm) return;
     try {
       setLoading(true);
 
@@ -218,13 +217,6 @@ export default function SubscriptionPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const confirm = await showConfirm(
-      "Yakin ingin menghapus langganan ini?",
-      "warning",
-      true
-    );
-    if (!confirm) return;
-
     setLoading(true);
     try {
       const res = await fetch(`/api/subscription/${id}`, { method: "DELETE" });
@@ -362,7 +354,16 @@ export default function SubscriptionPage() {
                         ? "bg-green-600 hover:bg-green-700"
                         : "bg-destructive hover:bg-destructive/70"
                     }`}
-                    onClick={() => handleSingleActivate(sub.id, sub.status)}
+                    onClick={() =>
+                      setSubsAction((_prev) => ({
+                        ..._prev,
+                        id: sub.id,
+                        name: sub.name,
+                        open: true,
+                        type: "activate",
+                        status: sub.status,
+                      }))
+                    }
                   >
                     <FaPowerOff className="w-4 h-4" />
                   </button>
@@ -387,7 +388,15 @@ export default function SubscriptionPage() {
                   <button
                     title="btnSubscriptionsDelete"
                     className="bg-secondary text-white p-2 rounded hover:bg-secondary/70"
-                    onClick={() => handleDelete(sub.id)}
+                    onClick={() =>
+                      setSubsAction((_prev) => ({
+                        ..._prev,
+                        id: sub.id,
+                        name: sub.name,
+                        open: true,
+                        type: "delete",
+                      }))
+                    }
                   >
                     <FaTrash className="w-4 h-4" />
                   </button>
@@ -466,6 +475,29 @@ export default function SubscriptionPage() {
         id={subsDetailModal.id}
         onClose={() => {
           setSubsDetailModal((_prev) => ({ ..._prev, open: false }));
+        }}
+      />
+      <ConfirmDialog
+        open={subsAction.open}
+        onOpenChange={(change) =>
+          setSubsAction((_prev) => ({ ..._prev, open: change }))
+        }
+        title={subsAction.type === "delete" ? "Hapus item?" : "Pindah status?"}
+        description={
+          <>
+            Tindakan ini tidak bisa dibatalkan. Untuk mengkonfirmasi, ketik nama
+            item persis.
+          </>
+        }
+        requiredText={subsAction.name}
+        matchMode="equals" // tidak case sensitive
+        confirmLabel={subsAction.type === "delete" ? "Hapus" : "Proses"}
+        cancelLabel="Batal"
+        tone="danger"
+        onConfirm={() => {
+          if (subsAction.type === "delete") handleDelete(subsAction.id);
+          if (subsAction.type === "activate")
+            handleSingleActivate(subsAction.id, subsAction.status);
         }}
       />
     </>

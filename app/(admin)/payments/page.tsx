@@ -3,7 +3,8 @@
 import { BillingModal } from "@/components/BillingModal";
 import PaymentDetailModal from "@/components/PaymentDetailModal";
 import PaymentFormModal from "@/components/PaymentFormModal";
-import { SwalToast, showConfirm } from "@/components/SweetAlert";
+import { SwalToast } from "@/components/SweetAlert";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import Loader from "@/components/ui/custom/loader";
 import {
   Table,
@@ -48,6 +49,11 @@ export default function PaymentPage() {
     id: "",
     open: false,
   });
+  const [deletePayment, setDeletePayment] = useState({
+    id: "",
+    name: "",
+    open: false,
+  });
 
   useEffect(() => {
     fetchPayments();
@@ -76,13 +82,6 @@ export default function PaymentPage() {
 
   // Action handlers
   const handleDelete = async (id: string) => {
-    const confirm = await showConfirm(
-      "Yakin ingin menghapus tagihan ini?",
-      "warning",
-      true
-    );
-    if (!confirm) return;
-
     setLoading(true);
     try {
       const res = await fetch(`/api/payment/${id}`, { method: "DELETE" });
@@ -203,7 +202,13 @@ export default function PaymentPage() {
                   <button
                     title="btnDeletePayment"
                     className="bg-secondary text-white p-2 rounded hover:bg-secondary/70"
-                    onClick={() => handleDelete(pay.id)}
+                    onClick={() =>
+                      setDeletePayment({
+                        id: pay.id,
+                        name: pay.subscriptionNumber,
+                        open: true,
+                      })
+                    }
                     disabled={pay.status === "SUCCESS"}
                   >
                     <FaTrash className="w-4 h-4" />
@@ -280,6 +285,26 @@ export default function PaymentPage() {
         open={billingModal.open}
         id={billingModal.id}
         onSuccess={fetchPayments}
+      />
+
+      <ConfirmDialog
+        open={deletePayment.open}
+        onOpenChange={(change) =>
+          setDeletePayment((_prev) => ({ ..._prev, open: change }))
+        }
+        title="Hapus item?"
+        description={
+          <>
+            Tindakan ini tidak bisa dibatalkan. Untuk mengkonfirmasi, ketik nama
+            item persis.
+          </>
+        }
+        requiredText={deletePayment.name}
+        matchMode="equals" // tidak case sensitive
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        tone="danger"
+        onConfirm={() => handleDelete(deletePayment.id)}
       />
     </>
   );

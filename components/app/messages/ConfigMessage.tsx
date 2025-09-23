@@ -2,7 +2,6 @@
 
 import { SwalToast } from "@/components/SweetAlert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -55,11 +54,8 @@ const ConfigMessage = () => {
         setLoading(true);
         const res = await fetch("/api/website-info/message");
         if (!res.ok) return;
-
         const result = await res.json();
-        if (result?.data) {
-          configForm.reset(result.data);
-        }
+        if (result?.data) configForm.reset(result.data);
       } catch (err) {
         SwalToast.fire({
           title: "Gagal memuat konfigurasi",
@@ -70,18 +66,13 @@ const ConfigMessage = () => {
         setLoading(false);
       }
     };
-
     fetchConfig();
   }, [configForm]);
 
   const onConfigSubmit = async (data: ConfigForm) => {
     try {
       setLoading(true);
-
-      SwalToast.fire({
-        title: "Menyimpan konfigurasi...",
-        icon: "info",
-      });
+      SwalToast.fire({ title: "Menyimpan konfigurasi...", icon: "info" });
 
       const res = await fetch("/api/website-info/message", {
         method: "POST",
@@ -115,16 +106,23 @@ const ConfigMessage = () => {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Pengaturan API</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <section className="rounded-lg border bg-background overflow-hidden">
+      {/* Header */}
+      <div className="p-4 sm:p-6 border-b">
+        <h2 className="text-lg sm:text-xl font-semibold">Pengaturan API</h2>
+        <p className="text-sm text-muted-foreground">
+          Konfigurasi endpoint pengiriman pesan dan nomor admin/support.
+        </p>
+      </div>
+
+      {/* Body */}
+      <div className="p-4 sm:p-6">
         <Form {...configForm}>
           <form
             onSubmit={configForm.handleSubmit(onConfigSubmit)}
-            className="space-y-4"
+            className="grid gap-4"
           >
+            {/* API URL */}
             <FormField
               control={configForm.control}
               name="apiUrl"
@@ -134,6 +132,7 @@ const ConfigMessage = () => {
                   <FormControl>
                     <Input
                       {...field}
+                      inputMode="url"
                       placeholder="https://example.com/send"
                       disabled={loading}
                     />
@@ -142,6 +141,8 @@ const ConfigMessage = () => {
                 </FormItem>
               )}
             />
+
+            {/* API Key */}
             <FormField
               control={configForm.control}
               name="apiKey"
@@ -152,6 +153,7 @@ const ConfigMessage = () => {
                     <Input
                       {...field}
                       placeholder="your-api-key"
+                      autoComplete="off"
                       disabled={loading}
                     />
                   </FormControl>
@@ -159,6 +161,8 @@ const ConfigMessage = () => {
                 </FormItem>
               )}
             />
+
+            {/* Secret */}
             <FormField
               control={configForm.control}
               name="apiSecret"
@@ -168,8 +172,9 @@ const ConfigMessage = () => {
                   <FormControl>
                     <Input
                       {...field}
-                      type="text"
-                      placeholder="xxxxxxx"
+                      type="password"
+                      placeholder="••••••••"
+                      autoComplete="new-password"
                       disabled={loading}
                     />
                   </FormControl>
@@ -178,8 +183,8 @@ const ConfigMessage = () => {
               )}
             />
 
-            {/* Admin & Support Phone in 1 row */}
-            <div className="flex gap-4">
+            {/* Phones */}
+            <div className="flex flex-col sm:flex-row gap-4">
               <FormField
                 control={configForm.control}
                 name="adminPhone"
@@ -189,6 +194,7 @@ const ConfigMessage = () => {
                     <FormControl>
                       <Input
                         {...field}
+                        inputMode="numeric"
                         placeholder="628123456789"
                         disabled={loading}
                       />
@@ -207,6 +213,7 @@ const ConfigMessage = () => {
                     <FormControl>
                       <Input
                         {...field}
+                        inputMode="numeric"
                         placeholder="628987654321"
                         disabled={loading}
                       />
@@ -217,17 +224,19 @@ const ConfigMessage = () => {
               />
             </div>
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary text-primary-foreground"
-            >
-              {loading ? "Menyimpan..." : "Simpan"}
-            </Button>
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full sm:w-auto bg-primary text-primary-foreground"
+              >
+                {loading ? "Menyimpan..." : "Simpan"}
+              </Button>
+            </div>
           </form>
         </Form>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 };
 

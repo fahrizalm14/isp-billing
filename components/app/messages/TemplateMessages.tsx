@@ -3,7 +3,6 @@
 import RichTextEditor from "@/components/RichTextEditor";
 import { SwalToast } from "@/components/SweetAlert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -109,11 +108,17 @@ const TemplateMessages: React.FC<TemplateMessageProps> = ({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Template Pesan</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <section className="rounded-lg border bg-background">
+      {/* Header manual */}
+      <div className="p-4 sm:p-6 border-b">
+        <h2 className="text-lg sm:text-xl font-semibold">Template Pesan</h2>
+        <p className="text-sm text-muted-foreground">
+          Kelola template pesan dan pratinjau dengan data dummy.
+        </p>
+      </div>
+
+      {/* Body manual */}
+      <div className="p-4 sm:p-6 space-y-6">
         {/* Info variabel */}
         <div className="text-sm text-muted-foreground">
           Variabel tersedia: {availableVars.join(", ")}
@@ -123,7 +128,7 @@ const TemplateMessages: React.FC<TemplateMessageProps> = ({
         <Form {...templateForm}>
           <form
             onSubmit={templateForm.handleSubmit(onTemplateSubmit)}
-            className="space-y-3"
+            className="grid gap-4"
           >
             <FormField
               control={templateForm.control}
@@ -141,6 +146,7 @@ const TemplateMessages: React.FC<TemplateMessageProps> = ({
                 </FormItem>
               )}
             />
+
             <FormField
               control={templateForm.control}
               name="content"
@@ -148,74 +154,133 @@ const TemplateMessages: React.FC<TemplateMessageProps> = ({
                 <FormItem>
                   <FormLabel>Isi Template</FormLabel>
                   <FormControl>
-                    <RichTextEditor
-                      value={field.value}
-                      onChange={field.onChange}
-                      minHeight={150}
-                    />
+                    <div className="border rounded">
+                      <RichTextEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                        minHeight={150}
+                      />
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-secondary text-secondary-foreground"
-            >
-              {loading ? "Menyimpan..." : "Simpan Template"}
-            </Button>
+
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full sm:w-auto bg-secondary text-secondary-foreground"
+              >
+                {loading ? "Menyimpan..." : "Simpan Template"}
+              </Button>
+            </div>
           </form>
         </Form>
 
-        {/* List template + modal lihat */}
+        {/* List template + modal lihat (tanpa Card) */}
         <div className="space-y-2">
           {loading && <p className="text-sm">Loading...</p>}
           {!loading && templates.length === 0 && (
             <p className="text-sm text-muted-foreground">Belum ada template</p>
           )}
-          {templates.map((tpl) => {
-            const preview = fillTemplate(tpl.content, dummyContext);
-            return (
-              <Dialog key={tpl.id}>
-                <DialogTrigger asChild>
-                  <div className="cursor-pointer p-2 border rounded bg-muted text-sm hover:bg-muted/70">
-                    <strong>{tpl.nama}</strong>
-                  </div>
-                </DialogTrigger>
-                <DialogContent className="max-w-lg">
-                  <DialogHeader>
-                    <DialogTitle>Detail Template: {tpl.nama}</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    {/* Raw content */}
-                    <div>
-                      <div className="text-xs text-muted-foreground mb-1">
-                        Raw (dengan variabel)
-                      </div>
-                      <pre className="text-sm whitespace-pre-wrap">
-                        {tpl.content}
-                      </pre>
-                    </div>
 
-                    {/* Preview */}
-                    <div>
-                      <div className="text-xs text-muted-foreground mb-1">
-                        Preview (dummy data)
+          {/* MOBILE: list sederhana */}
+          <div className="sm:hidden space-y-2">
+            {templates.map((tpl) => {
+              const preview = fillTemplate(tpl.content, dummyContext);
+              return (
+                <Dialog key={tpl.id}>
+                  <DialogTrigger asChild>
+                    <button
+                      className="w-full text-left cursor-pointer p-3 border rounded bg-muted text-sm hover:bg-muted/70"
+                      title="Lihat detail template"
+                    >
+                      <strong className="block truncate">{tpl.nama}</strong>
+                      <span className="text-xs text-muted-foreground line-clamp-2">
+                        {tpl.content}
+                      </span>
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg w-full max-h-[80svh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Detail Template: {tpl.nama}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">
+                          Raw (dengan variabel)
+                        </div>
+                        <pre className="text-sm whitespace-pre-wrap break-words">
+                          {tpl.content}
+                        </pre>
                       </div>
-                      <div
-                        className="text-sm border rounded p-2 bg-background"
-                        dangerouslySetInnerHTML={{ __html: preview }}
-                      />
+
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">
+                          Preview (dummy data)
+                        </div>
+                        <div
+                          className="text-sm border rounded p-2 bg-background"
+                          dangerouslySetInnerHTML={{ __html: preview }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            );
-          })}
+                  </DialogContent>
+                </Dialog>
+              );
+            })}
+          </div>
+
+          {/* DESKTOP: grid ringan */}
+          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {templates.map((tpl) => {
+              const preview = fillTemplate(tpl.content, dummyContext);
+              return (
+                <Dialog key={tpl.id}>
+                  <DialogTrigger asChild>
+                    <div className="cursor-pointer p-3 border rounded hover:bg-muted/40">
+                      <strong className="block text-sm truncate">
+                        {tpl.nama}
+                      </strong>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {tpl.content}
+                      </p>
+                    </div>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-xl w-full max-h-[80svh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Detail Template: {tpl.nama}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">
+                          Raw (dengan variabel)
+                        </div>
+                        <pre className="text-sm whitespace-pre-wrap break-words">
+                          {tpl.content}
+                        </pre>
+                      </div>
+
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">
+                          Preview (dummy data)
+                        </div>
+                        <div
+                          className="text-sm border rounded p-2 bg-background"
+                          dangerouslySetInnerHTML={{ __html: preview }}
+                        />
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              );
+            })}
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 };
 

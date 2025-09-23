@@ -7,6 +7,7 @@ const karla = Karla({
   subsets: ["latin"],
   variable: "--font-karla",
 });
+
 // export const metadata: Metadata = {
 //   title: "Dz admin dashboard",
 //   description: "NextJs admin dashboard created by Sijin Raj"
