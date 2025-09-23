@@ -65,6 +65,9 @@ model WebsiteInfo {
   email       String? // Contact email
   website     String? // Public-facing website URL
 
+  midtransServerKey String?
+  midtransSecretKey String?
+
   apiUrl    String? // endpoint generic tele/wa
   apiSecret String? // secret tele/wa
   apiKey    String? // token tele/wa

@@ -46,7 +46,9 @@ export async function POST(req: NextRequest) {
       fraud_status,
     } = body;
 
-    const serverKey = process.env.MIDTRANS_SERVER_KEY || "";
+    const info = await prisma.websiteInfo.findFirst();
+
+    const serverKey = info?.midtransServerKey || "";
 
     // hash signature
     const hash = crypto

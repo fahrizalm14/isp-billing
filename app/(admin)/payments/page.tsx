@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/table";
 import { useEffect, useState } from "react";
 import {
+  FaEye,
+  FaEyeSlash,
   FaInfoCircle,
   FaMoneyBillWave,
   FaSyncAlt,
@@ -40,23 +42,29 @@ export default function PaymentPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
   const [paymentModal, setPaymentModal] = useState({ id: "", open: false });
   const [paymentDetailModal, setPaymentDetailModal] = useState({
     id: "",
     open: false,
   });
-  const [billingModal, setBillingModal] = useState({
-    id: "",
-    open: false,
-  });
+  const [billingModal, setBillingModal] = useState({ id: "", open: false });
   const [deletePayment, setDeletePayment] = useState({
     id: "",
     name: "",
     open: false,
   });
 
+  // Midtrans config state
+  const [serverKey, setServerKey] = useState("");
+  const [secretKey, setSecretKey] = useState("");
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [showServer, setShowServer] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
+
   useEffect(() => {
     fetchPayments();
+    fetchConfig();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
@@ -71,16 +79,31 @@ export default function PaymentPage() {
       const result = await res.json();
       setPayments(result.data);
       setTotalPages(result.totalPages || 1);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       setPayments([]);
-      console.error(err);
       SwalToast.fire({ icon: "error", title: "Gagal memuat data" });
     } finally {
       setLoading(false);
     }
   };
 
-  // Action handlers
+  // Fetch midtrans config
+  const fetchConfig = async () => {
+    try {
+      const res = await fetch("/api/website-info/payment");
+      if (!res.ok) return;
+      const result = await res.json();
+      if (result?.data) {
+        setServerKey(result.data.midtransServerKey || "");
+        setSecretKey(result.data.midtransSecretKey || "");
+      }
+    } catch (err) {
+      console.error("Fetch config error:", err);
+    }
+  };
+
+  // Delete payment
   const handleDelete = async (id: string) => {
     setLoading(true);
     try {
@@ -97,10 +120,99 @@ export default function PaymentPage() {
     }
   };
 
+  // Save midtrans keys
+  const handleSaveMidtrans = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!serverKey || !secretKey) {
+      SwalToast.fire({ icon: "error", title: "Semua field wajib diisi" });
+      return;
+    }
+    try {
+      setSavingConfig(true);
+      const res = await fetch("/api/website-info/payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          midtransServerKey: serverKey,
+          midtransSecretKey: secretKey,
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || "Gagal simpan");
+      SwalToast.fire({
+        icon: "success",
+        title: result.message || "Konfigurasi disimpan",
+      });
+    } catch (err) {
+      SwalToast.fire({
+        icon: "error",
+        title: (err as Error).message || "Gagal menyimpan konfigurasi",
+      });
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
   return (
     <>
       <div className="p-6">
-        <h2 className="text-xl font-semibold">Daftar Pembayaran</h2>
+        {/* Konfigurasi Midtrans */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-2">
+          <h2 className="text-xl font-semibold">Konfigurasi Midtrans</h2>
+
+          <form
+            onSubmit={handleSaveMidtrans}
+            className="flex items-center gap-2 w-full md:w-auto"
+          >
+            {/* Server Key */}
+            <div className="relative w-full sm:w-64">
+              <input
+                type={showServer ? "text" : "password"}
+                value={serverKey}
+                onChange={(e) => setServerKey(e.target.value)}
+                placeholder="Server Key"
+                className="border rounded px-3 py-2 w-full pr-10"
+                disabled={savingConfig}
+              />
+              <button
+                type="button"
+                onClick={() => setShowServer((p) => !p)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+              >
+                {showServer ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </div>
+
+            {/* Secret Key */}
+            <div className="relative w-full sm:w-64">
+              <input
+                type={showSecret ? "text" : "password"}
+                value={secretKey}
+                onChange={(e) => setSecretKey(e.target.value)}
+                placeholder="Secret Key"
+                className="border rounded px-3 py-2 w-full pr-10"
+                disabled={savingConfig}
+              />
+              <button
+                type="button"
+                onClick={() => setShowSecret((p) => !p)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+              >
+                {showSecret ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              disabled={savingConfig}
+              className="bg-primary text-white px-4 py-2 rounded hover:bg-primary/90 whitespace-nowrap"
+            >
+              {savingConfig ? "Menyimpan..." : "Simpan"}
+            </button>
+          </form>
+        </div>
+
+        <h2 className="text-xl font-semibold mb-4">Daftar Pembayaran</h2>
 
         {/* Tombol atas */}
         <div className="flex flex-col md:flex-row justify-between mt-4 mb-2 items-start md:items-center gap-2">
@@ -135,7 +247,7 @@ export default function PaymentPage() {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Table Pembayaran */}
         <Table className="table-auto w-full">
           <TableHeader>
             <TableRow>
@@ -146,7 +258,7 @@ export default function PaymentPage() {
               <TableHead>Status</TableHead>
               <TableHead>Tgl Dibuat</TableHead>
               <TableHead>Jatuh Tempo</TableHead>
-              <TableHead className="px-4 py-2 text-center">#</TableHead>
+              <TableHead className="text-center">#</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -180,9 +292,9 @@ export default function PaymentPage() {
                     ? new Date(pay.expiredAt).toLocaleDateString("id-ID")
                     : "-"}
                 </TableCell>
-                <TableCell className="px-4 py-2 text-center flex justify-center gap-2">
+                <TableCell className="flex justify-center gap-2">
                   <button
-                    title="btnPaymentModal"
+                    title="detail"
                     className="bg-primary text-white p-2 rounded hover:bg-primary/90"
                     onClick={() =>
                       setPaymentDetailModal({ id: pay.id, open: true })
@@ -190,17 +302,15 @@ export default function PaymentPage() {
                   >
                     <FaInfoCircle className="w-4 h-4" />
                   </button>
-
                   <button
-                    title="btnBilledModal"
+                    title="billing"
                     className="bg-green-600 text-white p-2 rounded hover:bg-green-700"
                     onClick={() => setBillingModal({ id: pay.id, open: true })}
                   >
                     <FaMoneyBillWave className="w-4 h-4" />
                   </button>
-
                   <button
-                    title="btnDeletePayment"
+                    title="hapus"
                     className="bg-secondary text-white p-2 rounded hover:bg-secondary/70"
                     onClick={() =>
                       setDeletePayment({
@@ -216,7 +326,6 @@ export default function PaymentPage() {
                 </TableCell>
               </TableRow>
             ))}
-
             {!payments.length && !loading && (
               <TableRow>
                 <TableCell
@@ -264,7 +373,7 @@ export default function PaymentPage() {
 
       <Loader loading={loading} />
 
-      {/* Modal */}
+      {/* Modals */}
       <PaymentFormModal
         open={paymentModal.open}
         paymentId={paymentModal.id}
@@ -272,25 +381,22 @@ export default function PaymentPage() {
         onSuccess={fetchPayments}
       />
       <PaymentDetailModal
-        onClose={() =>
-          setPaymentDetailModal((_prev) => ({ ..._prev, open: false }))
-        }
         open={paymentDetailModal.open}
         id={paymentDetailModal.id}
+        onClose={() => setPaymentDetailModal({ id: "", open: false })}
       />
       <BillingModal
-        onClose={() => {
-          setBillingModal((_prev) => ({ ..._prev, open: false }));
-        }}
         open={billingModal.open}
         id={billingModal.id}
+        onClose={() => setBillingModal({ id: "", open: false })}
         onSuccess={fetchPayments}
       />
 
+      {/* ConfirmDialog */}
       <ConfirmDialog
         open={deletePayment.open}
         onOpenChange={(change) =>
-          setDeletePayment((_prev) => ({ ..._prev, open: change }))
+          setDeletePayment((prev) => ({ ...prev, open: change }))
         }
         title="Hapus item?"
         description={
@@ -300,7 +406,7 @@ export default function PaymentPage() {
           </>
         }
         requiredText={deletePayment.name}
-        matchMode="equals" // tidak case sensitive
+        matchMode="equals"
         confirmLabel="Hapus"
         cancelLabel="Batal"
         tone="danger"
