@@ -1,7 +1,6 @@
 import { decrypt } from "@/lib/crypto";
-import { deleteUserPPPOE } from "@/lib/mikrotik/pppoe";
+import { deleteUserPPPOE, movePPPOEToProfile } from "@/lib/mikrotik/pppoe";
 import { prisma } from "@/lib/prisma";
-import { SubscriptionResponse } from "@/types/type";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function DELETE(
@@ -81,7 +80,7 @@ export async function GET(
           },
         },
         odp: {
-          select: { name: true, router: { select: { name: true } } },
+          select: { name: true, id: true, router: { select: { name: true } } },
         },
         package: true,
         payments: {
@@ -97,13 +96,14 @@ export async function GET(
       );
     }
 
-    const data: SubscriptionResponse = {
+    const data = {
       id: subscription.id,
       number: subscription.number,
       active: subscription.active,
       dueDate: subscription.dueDate,
       expiredAt: subscription.expiredAt || new Date(),
       odp: subscription.odp?.name || "",
+      odpId: subscription.odp?.id || "",
       routerName: subscription.odp?.router?.name || "",
       customerName: subscription.userProfile?.name || "",
       customerPhone: subscription.userProfile?.phone || "",
@@ -117,6 +117,7 @@ export async function GET(
           }`.trim()
         : "",
       packageName: subscription.package?.name || "",
+      packageId: subscription.package?.id || "",
       packageSpeed: subscription.package?.rateLimit || "",
       payments: subscription.payments.map((p) => ({
         id: p.id,
@@ -133,6 +134,7 @@ export async function GET(
       password: subscription.usersPPPOE.length
         ? subscription.usersPPPOE[0].password
         : undefined,
+      address: subscription.userProfile.address,
     };
 
     return NextResponse.json({ message: "Get info langganan berhasil.", data });
@@ -140,6 +142,122 @@ export async function GET(
     console.error("[GET][PACKAGE]", error);
     return NextResponse.json(
       { error: "Gagal get info langganan." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const params = await context.params;
+    const id = params.id;
+    if (!id) {
+      return NextResponse.json(
+        { error: "Id tidak ditemukan." },
+        { status: 400 }
+      );
+    }
+
+    const body = await req.json();
+    const { customerName, customerPhone, address, odpId, packageId } = body;
+
+    const subs = await prisma.subscription.findUnique({
+      where: { id },
+      include: {
+        userProfile: { include: { address: true } },
+        usersPPPOE: true,
+        package: { include: { router: true } }, // ambil router lama
+      },
+    });
+
+    if (!subs) {
+      return NextResponse.json(
+        { error: "Langganan tidak ditemukan." },
+        { status: 404 }
+      );
+    }
+
+    // ✅ update userProfile & address
+    await prisma.userProfile.update({
+      where: { id: subs.userProfileId },
+      data: {
+        name: customerName,
+        phone: customerPhone,
+        address: subs.userProfile.address
+          ? {
+              update: {
+                street: address.street,
+                subDistrict: address.subDistrict,
+                district: address.district,
+                city: address.city,
+                province: address.province,
+                postalCode: address.postalCode,
+              },
+            }
+          : {
+              create: {
+                street: address.street,
+                subDistrict: address.subDistrict,
+                district: address.district,
+                city: address.city,
+                province: address.province,
+                postalCode: address.postalCode,
+              },
+            },
+      },
+    });
+
+    // ✅ update subscription relasi ODP & Package pakai ID
+    const updatedSubscription = await prisma.subscription.update({
+      where: { id },
+      data: {
+        odp: { connect: { id: odpId } },
+        package: { connect: { id: packageId } },
+        updatedAt: new Date(),
+      },
+      include: {
+        package: { include: { router: true } }, // ambil router baru
+        usersPPPOE: true,
+      },
+    });
+
+    // ✅ move PPPoE user ke profile sesuai package baru
+    if (
+      updatedSubscription.usersPPPOE.length &&
+      updatedSubscription.package?.router
+    ) {
+      const router = updatedSubscription.package.router;
+      const userPPPOE = updatedSubscription.usersPPPOE[0];
+
+      try {
+        await movePPPOEToProfile(
+          {
+            host: router.ipAddress,
+            username: router.apiUsername,
+            password: decrypt(router.apiPassword),
+            port: router.port,
+          },
+          {
+            profile: updatedSubscription.package.name,
+            name: userPPPOE.username,
+          }
+        );
+      } catch (err) {
+        console.error(`[PUT][SUBSCRIPTION][${id}] gagal move PPPoE`, err);
+      }
+    }
+
+    return NextResponse.json({
+      message: "Langganan berhasil diperbarui.",
+      data: updatedSubscription,
+    });
+  } catch (error) {
+    console.error("[PUT][SUBSCRIPTION]", error);
+    return NextResponse.json(
+      { error: "Gagal memperbarui langganan." },
       { status: 500 }
     );
   }

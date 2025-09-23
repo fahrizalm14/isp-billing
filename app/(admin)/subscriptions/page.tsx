@@ -1,11 +1,17 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-import { BillingModal } from "@/components/BillingModal";
 import SubscriptionDetailModal from "@/components/SubscriptionDetailModal";
 import SubscriptionFormModal from "@/components/SubscriptionFormModal";
 import { SwalToast, showConfirm } from "@/components/SweetAlert";
+import { Button } from "@/components/ui/button";
 import Loader from "@/components/ui/custom/loader";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -15,7 +21,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useEffect, useState } from "react";
-import { FaInfoCircle, FaPowerOff, FaSyncAlt, FaTrash } from "react-icons/fa";
+import {
+  FaEdit,
+  FaInfoCircle,
+  FaPowerOff,
+  FaSyncAlt,
+  FaTrash,
+} from "react-icons/fa";
 
 interface SubscriptionSummary {
   id: string;
@@ -43,14 +55,13 @@ export default function SubscriptionPage() {
     id: "",
     open: false,
   });
-  const [paymentDetailModal, setPaymentDetailModal] = useState({
-    id: "",
-    open: false,
-  });
   const [subsDetailModal, setSubsDetailModal] = useState({
     id: "",
     open: false,
   });
+
+  // ✅ Dialog bypass isolir
+  const [bypassDialog, setBypassDialog] = useState(false);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -68,8 +79,6 @@ export default function SubscriptionPage() {
       const result = await res.json();
       setSubscriptions(result.data);
       setTotalPages(result.totalPages || 1);
-      // ❌ Jangan hapus selected global
-      // setSelected((prev) => prev.filter(...));
     } catch (err) {
       console.error(err);
       SwalToast.fire({ icon: "error", title: "Gagal memuat data" });
@@ -85,12 +94,10 @@ export default function SubscriptionPage() {
 
   const toggleSelectAllPage = () => {
     if (isAllPageSelected) {
-      // Hapus semua ID di page ini
       setSelected((prev) =>
         prev.filter((id) => !subscriptions.some((sub) => sub.id === id))
       );
     } else {
-      // Tambahkan semua ID di page ini
       setSelected((prev) => [
         ...prev,
         ...subscriptions
@@ -106,55 +113,42 @@ export default function SubscriptionPage() {
     );
   };
 
-  // Action handlers
-  const handleActivateSelected = async () => {
+  const handleByPassIsolirSelected = () => {
     if (!selected.length) return;
-    const confirm = await showConfirm(
-      `Yakin ingin mengaktifkan ${selected.length} langganan?`,
-      "question",
-      true
-    );
-    if (!confirm) return;
-
-    setLoading(true);
-    try {
-      await Promise.all(
-        selected.map((id) =>
-          fetch(`/api/subscription/${id}/activate`, { method: "PATCH" })
-        )
-      );
-      SwalToast.fire({
-        icon: "success",
-        title: "Langganan berhasil diaktifkan!",
-      });
-      fetchSubscriptions();
-    } finally {
-      setLoading(false);
-    }
+    setBypassDialog(true);
   };
 
-  const handleDeactivateSelected = async () => {
-    if (!selected.length) return;
-    const confirm = await showConfirm(
-      `Yakin ingin menonaktifkan ${selected.length} langganan?`,
-      "warning",
-      true
-    );
-    if (!confirm) return;
-
+  const confirmBypass = async () => {
     setLoading(true);
     try {
-      await Promise.all(
-        selected.map((id) =>
-          fetch(`/api/subscription/${id}/deactivate`, { method: "PATCH" })
-        )
-      );
-      SwalToast.fire({
-        icon: "success",
-        title: "Langganan berhasil dinonaktifkan!",
+      const res = await fetch(`/api/subscription/bypass`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selected }),
       });
-      fetchSubscriptions();
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        SwalToast.fire({
+          icon: "error",
+          title: data.error || "Gagal bypass isolir",
+        });
+      } else {
+        SwalToast.fire({
+          icon: "success",
+          title: "Bypass isolir berhasil",
+        });
+        setSelected([]); // reset checkbox
+        fetchSubscriptions(); // refresh data
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (err) {
+      SwalToast.fire({
+        icon: "error",
+        title: "Terjadi kesalahan server",
+      });
     } finally {
+      setBypassDialog(false);
       setLoading(false);
     }
   };
@@ -188,8 +182,7 @@ export default function SubscriptionPage() {
 
         SwalToast.fire({
           icon: "success",
-          title: "Ooops!",
-          text: `Berhasil menonaktifkan langganan`,
+          title: "Berhasil menonaktifkan langganan",
         });
       } else {
         const res = await fetch(`/api/subscription/${id}/activate`, {
@@ -207,8 +200,7 @@ export default function SubscriptionPage() {
 
         SwalToast.fire({
           icon: "success",
-          title: "Ooops!",
-          text: `Berhasil mengaktifkan langganan`,
+          title: "Berhasil mengaktifkan langganan",
         });
       }
       fetchSubscriptions();
@@ -241,7 +233,6 @@ export default function SubscriptionPage() {
         SwalToast.fire("Ooops...", data.error, "error");
       } else {
         fetchSubscriptions();
-
         SwalToast.fire("Yess....", data.message, "success");
       }
     } finally {
@@ -264,40 +255,17 @@ export default function SubscriptionPage() {
               + Tambah Langganan
             </button>
 
-            {/* <button
-              className={`px-4 py-2 rounded transition ${
-                selected.length === 0
-                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-green-600 text-white hover:bg-green-700"
-              }`}
-              onClick={handleActivateSelected}
-              disabled={selected.length === 0}
-            >
-              Aktifkan ({selected.length})
-            </button>
-
             <button
               className={`px-4 py-2 rounded transition ${
                 selected.length === 0
                   ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-red-600 text-white hover:bg-red-700"
+                  : "bg-destructive text-white hover:bg-destructive/30"
               }`}
-              onClick={handleDeactivateSelected}
+              onClick={handleByPassIsolirSelected}
               disabled={selected.length === 0}
             >
-              Nonaktifkan ({selected.length})
+              Bypass Isolir ({selected.length})
             </button>
-            <button
-              className={`px-4 py-2 rounded transition ${
-                selected.length === 0
-                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  : "bg-gray-600 text-white hover:bg-gray-700"
-              }`}
-              onClick={handleDeactivateSelected}
-              disabled={selected.length === 0}
-            >
-              Hapus ({selected.length})
-            </button> */}
           </div>
 
           {/* Search + Refresh */}
@@ -358,7 +326,6 @@ export default function SubscriptionPage() {
                   />
                 </TableCell>
                 <TableCell>{sub.number}</TableCell>
-                {/* <TableCell>{(page - 1) * 10 + index + 1}</TableCell> */}
                 <TableCell>{sub.name}</TableCell>
                 <TableCell>{sub.odpName}</TableCell>
                 <TableCell>{sub.routerName}</TableCell>
@@ -401,14 +368,22 @@ export default function SubscriptionPage() {
                   </button>
                   <button
                     title="btnSubscriptionsInfo"
-                    className={`text-white p-2 rounded bg-primary hover:bg-primary/70`}
+                    className="text-white p-2 rounded bg-primary hover:bg-primary/70"
                     onClick={() =>
                       setSubsDetailModal({ id: sub.id, open: true })
                     }
                   >
                     <FaInfoCircle className="w-4 h-4" />
                   </button>
-
+                  <button
+                    title="btnSubscriptionsEdit"
+                    className="bg-yellow-500 text-white p-2 rounded hover:bg-yellow-600"
+                    onClick={() =>
+                      setSubscriptionModal({ id: sub.id, open: true })
+                    }
+                  >
+                    <FaEdit className="w-4 h-4" />
+                  </button>
                   <button
                     title="btnSubscriptionsDelete"
                     className="bg-secondary text-white p-2 rounded hover:bg-secondary/70"
@@ -456,18 +431,34 @@ export default function SubscriptionPage() {
 
       <Loader loading={loading} />
 
+      {/* ✅ Dialog Bypass Isolir */}
+      <Dialog open={bypassDialog} onOpenChange={setBypassDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Konfirmasi Bypass Isolir</DialogTitle>
+          </DialogHeader>
+          <p>
+            Apakah kamu yakin ingin melakukan <b>bypass isolir</b> untuk{" "}
+            {selected.length} langganan?
+          </p>
+          <DialogFooter>
+            <Button
+              className="hover:bg-secondary"
+              variant="outline"
+              onClick={() => setBypassDialog(false)}
+            >
+              Batal
+            </Button>
+            <Button onClick={confirmBypass}>Ya, Bypass</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ✅ Modal Form Add / Update */}
       <SubscriptionFormModal
         open={subscriptionModal.open}
         subscriptionId={subscriptionModal.id}
         onClose={() => setSubscriptionModal({ id: "", open: false })}
-        onSuccess={fetchSubscriptions}
-      />
-      <BillingModal
-        onClose={() => {
-          setPaymentDetailModal((_prev) => ({ ..._prev, open: false }));
-        }}
-        open={paymentDetailModal.open}
-        id={paymentDetailModal.id}
         onSuccess={fetchSubscriptions}
       />
       <SubscriptionDetailModal

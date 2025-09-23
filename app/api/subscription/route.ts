@@ -22,11 +22,17 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const { name, phone, email, address, odpId, packageId } = body;
+    const {
+      customerName: name,
+      customerPhone: phone,
+      address,
+      odpId,
+      packageId,
+    } = body;
     const newAddress = address as Address;
 
     // todo validasi payload
-    if (!name || !phone || !email || !address || !odpId || !packageId) {
+    if (!name || !phone || !address || !odpId || !packageId) {
       return NextResponse.json(
         { error: "Semua field wajib diisi." },
         { status: 400 }
@@ -99,7 +105,7 @@ export async function POST(req: Request) {
     await createPayment({
       amount: pkg.price,
       customerName: profile.name,
-      email,
+      email: `${subs.number}@mail.id`,
       packageId: pkg.id,
       packageName: pkg.name,
       taxAmount: 0,

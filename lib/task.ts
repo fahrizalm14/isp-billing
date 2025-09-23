@@ -23,7 +23,6 @@ export const generateInvoice = async () => {
   const threeDaysLater = new Date(now);
   threeDaysLater.setDate(threeDaysLater.getDate() + 2);
 
-  // Start = 00:00:00 Jakarta (3 hari ke depan), dikonversi ke UTC
   const start = jakartaToUTC(
     threeDaysLater.getFullYear(),
     threeDaysLater.getMonth(),
@@ -34,7 +33,6 @@ export const generateInvoice = async () => {
     0
   );
 
-  // End = 23:59:59 Jakarta (3 hari ke depan), dikonversi ke UTC
   const end = jakartaToUTC(
     threeDaysLater.getFullYear(),
     threeDaysLater.getMonth(),

@@ -17,7 +17,7 @@ import OdpSelectModal from "./OdpSelectModal";
 import PackageSelectModal from "./PackageSelectModal";
 import { Button } from "./ui/button";
 
-// ✅ Address schema dibuat nested object
+// ✅ Address schema
 const AddressSchema = z.object({
   street: z.string().min(1, "Jalan wajib diisi"),
   subDistrict: z.string().min(1, "Kelurahan wajib diisi"),
@@ -30,8 +30,7 @@ const AddressSchema = z.object({
 const SubscriptionSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi"),
   phone: z.string().min(10, "Nomor telepon tidak valid"),
-  email: z.string().email("Email tidak valid"),
-  address: AddressSchema, // ✅ nested object
+  address: AddressSchema,
   odpId: z.string().min(1, "ODP wajib dipilih"),
   packageId: z.string().min(1, "Paket wajib dipilih"),
   taxAmount: z.number().min(0),
@@ -46,11 +45,9 @@ type Props = {
   subscriptionId?: string;
 };
 
-// ✅ default kosong dengan address nested
 const EMPTY_SUBS: SubscriptionFormData = {
   name: "",
   phone: "",
-  email: "",
   address: {
     street: "",
     subDistrict: "",
@@ -94,23 +91,60 @@ export default function SubscriptionFormModal({
     defaultValues: EMPTY_SUBS,
   });
 
+  // ✅ Fetch & map data saat edit
   useEffect(() => {
     if (isEdit && open) {
-      fetch(`/api/subscriptions/${subscriptionId}`)
+      fetch(`/api/subscription/${subscriptionId}`)
         .then((res) => res.json())
-        .then((data) => reset(data)); // pastikan API balikin address nested juga
-    }
-  }, [isEdit, reset, open, subscriptionId]);
+        .then((res) => {
+          const data = res.data;
+          if (!data) return;
 
-  const onSubmit = async (data: SubscriptionFormData) => {
+          reset({
+            name: data.customerName || "",
+            phone: data.customerPhone || "",
+            address: {
+              street: data.address?.street || "",
+              subDistrict: data.address?.subDistrict || "",
+              district: data.address?.district || "",
+              city: data.address?.city || "",
+              province: data.address?.province || "",
+              postalCode: data.address?.postalCode || "",
+            },
+            odpId: data.odpId || "", // pakai ID dari API
+            packageId: data.packageId || "", // pakai ID dari API
+            taxAmount: 0,
+          });
+
+          setOdpName(data.odp || "");
+          setPackageName(data.packageName || "");
+        });
+    } else if (!isEdit) {
+      reset(EMPTY_SUBS);
+      setOdpName("");
+      setPackageName("");
+    }
+  }, [isEdit, open, reset, subscriptionId]);
+
+  // ✅ Submit mapping ke API (langsung pakai id)
+  const onSubmit = async (form: SubscriptionFormData) => {
     setLoading(true);
     try {
+      const payload = {
+        customerName: form.name,
+        customerPhone: form.phone,
+        address: form.address,
+        odpId: form.odpId,
+        packageId: form.packageId,
+        taxAmount: form.taxAmount,
+      };
+
       const res = await fetch(
-        isEdit ? `/api/subscriptions/${subscriptionId}` : "/api/subscription",
+        isEdit ? `/api/subscription/${subscriptionId}` : "/api/subscription",
         {
           method: isEdit ? "PUT" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data), // ✅ sudah nested
+          body: JSON.stringify(payload),
         }
       );
       if (res.ok) {
@@ -174,15 +208,6 @@ export default function SubscriptionFormModal({
                   <p className="text-sm text-red-500">{errors.phone.message}</p>
                 )}
               </div>
-            </div>
-
-            {/* EMAIL */}
-            <div>
-              <label>Email</label>
-              <Input {...register("email")} />
-              {errors.email && (
-                <p className="text-sm text-red-500">{errors.email.message}</p>
-              )}
             </div>
 
             {/* ADDRESS */}
