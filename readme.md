@@ -8,13 +8,13 @@
 
 ### 📊 Dashboard
 
-* [ ] Ringkasan pendapatan bulanan
-* [ ] Jumlah langganan aktif
-* [ ] Jumlah tagihan belum dibayar
-* [ ] Total pengguna
-* [ ] Paket terpopuler bulan ini
+* [x] Ringkasan pendapatan bulanan
+* [x] Jumlah langganan aktif
+* [x] Jumlah tagihan belum dibayar
+* [x] Total pengguna
+* [x] Paket terpopuler bulan ini
 * [x] Monitoring bandwidth real-time per interface (RX/TX)
-* [ ] Statistik pemakaian dengan grafik interaktif
+* [x] Statistik pemakaian dengan grafik interaktif
 
 ---
 
@@ -28,7 +28,7 @@
 ### 🛰️ Optical Distribution Point (ODP)
 
 * [x] Manajemen daftar ODP (nama, lokasi, wilayah, kapasitas port)
-* [ ] Monitoring penggunaan port ODP
+* [x] Monitoring penggunaan port ODP
 * [x] Pemetaan lokasi ODP dengan integrasi peta interaktif
 
 ---
@@ -67,23 +67,23 @@
 
 ### 💰 Payment & Billing Management
 
-* [ ] Manajemen pembayaran/tagihan pelanggan
+* [x] Manajemen pembayaran/tagihan pelanggan
 * [x] Pembuatan tagihan otomatis saat aktivasi pertama kali
-* [ ] Membuat tagihan langganan secara manual oleh admin
+* [x] Membuat tagihan langganan secara manual oleh admin
 * [x] Detail tagihan: nominal, metode pembayaran, status pembayaran, tanggal jatuh tempo
 * [x] Mendukung payment gateway Midtrans dan input manual dengan nomor referensi
-* [ ] Riwayat pembayaran tersimpan lengkap untuk audit
-* [ ] Manual Pricing (biaya tambahan/potongan harga per tagihan)
+* [x] Riwayat pembayaran tersimpan lengkap untuk audit
+* [x] Manual Pricing (biaya tambahan/potongan harga per tagihan)
 
 ---
 
 ### 📉 Cashflow Management
 
-* [ ] Pencatatan manual pemasukan dan pengeluaran perusahaan
-* [ ] Kategori transaksi (operasional, gaji, perangkat, pembayaran pelanggan, dll)
-* [ ] Ringkasan arus kas harian, mingguan, bulanan
-* [ ] Grafik interaktif cash-in / cash-out
-* [ ] Monitoring profitabilitas ISP
+* [x] Pencatatan manual pemasukan dan pengeluaran perusahaan
+* [x] Kategori transaksi (operasional, gaji, perangkat, pembayaran pelanggan, dll)
+* [x] Ringkasan arus kas harian, mingguan, bulanan
+* [x] Grafik interaktif cash-in / cash-out
+* [x] Monitoring profitabilitas ISP
 
 ---
 
