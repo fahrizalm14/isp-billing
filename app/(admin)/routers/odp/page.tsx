@@ -22,7 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FaSyncAlt } from "react-icons/fa";
 
 function convertOdps(oldOdps: OdpInput[]): OdpMapData[] {
@@ -32,7 +32,7 @@ function convertOdps(oldOdps: OdpInput[]): OdpMapData[] {
       id: odp.id ?? odp.routerId,
       name: odp.name,
       coordinate: `${odp.latitude},${odp.longitude}`,
-      portCapacity: parseInt(odp.capacity || "0"),
+      portCapacity: parseInt(odp.capacity || "0", 10),
       districtName: odp.region,
     }));
 }
@@ -49,36 +49,41 @@ export type IResOdp = {
   usedPort?: number;
 };
 
+const PAGE_SIZE = 15;
+
 export default function OdpListPage() {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedOdp, setSelectedOdp] = useState<OdpInput | null>(null);
   const [odps, setOdps] = useState<IResOdp[]>([]);
-  const [odp, setOdp] = useState({
-    id: "",
-    name: "",
-    open: false,
-  });
+  const [odp, setOdp] = useState({ id: "", name: "", open: false });
+
+  // debounce search
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, debouncedSearch]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const res = await fetch(
         `/api/router/odp?search=${encodeURIComponent(
-          search
-        )}&page=${page}&limit=15`
+          debouncedSearch
+        )}&page=${page}&limit=${PAGE_SIZE}`
       );
       const json = await res.json();
       setOdps(json.data ?? []);
-      setTotalPages(Math.max(1, Math.ceil((json.total ?? 0) / 15)));
+      setTotalPages(Math.max(1, Math.ceil((json.total ?? 0) / PAGE_SIZE)));
     } catch (error) {
       console.error("Gagal fetch data ODP", error);
     } finally {
@@ -98,8 +103,7 @@ export default function OdpListPage() {
       } else {
         throw new Error(result?.error || "Gagal menghapus ODP.");
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (err) {
+    } catch {
       SwalToast.fire({
         icon: "error",
         title: "Terjadi kesalahan saat menghapus ODP",
@@ -109,51 +113,76 @@ export default function OdpListPage() {
     }
   };
 
-  const OdpMap = dynamic(
-    () => import("@/components/OdpMap").then((m) => m.OdpMap),
-    {
-      ssr: false,
-    }
+  const OdpMap = useMemo(
+    () =>
+      dynamic(() => import("@/components/OdpMap").then((m) => m.OdpMap), {
+        ssr: false,
+      }),
+    []
+  );
+
+  // data untuk peta
+  const mapData: OdpMapData[] = useMemo(
+    () =>
+      convertOdps(
+        odps.map((_odp) => ({
+          capacity: `${_odp.capacity}`,
+          location: _odp.location,
+          name: _odp.name,
+          region: _odp.region,
+          routerId: _odp.routerId!,
+          id: _odp.id,
+          latitude: _odp.latitude!,
+          longitude: _odp.longitude,
+        }))
+      ),
+    [odps]
   );
 
   return (
     <>
-      <div className="px-4 sm:px-6 py-6">
+      <div className="px-4 sm:px-6 py-6 max-w-screen-2xl">
         <h2 className="text-xl font-semibold mb-4">
           Optical Distribution Point
         </h2>
 
-        <div className="grid gap-4 lg:grid-cols-7">
-          {/* KIRI: daftar & kontrol */}
-          <div className="lg:col-span-3 min-w-0">
-            {/* Toolbar */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-4">
-              <button
-                className="bg-primary text-primary-foreground px-3 py-2 rounded hover:bg-primary/90 w-full sm:w-auto"
-                onClick={() => {
-                  setSelectedOdp(null);
-                  setModalOpen(true);
-                }}
-              >
-                + Tambah ODP
-              </button>
+        {/* Block di mobile, grid mulai lg */}
+        <div className="block space-y-4 lg:grid lg:grid-cols-7 lg:gap-4 lg:space-y-0">
+          {/* KIRI: daftar & kontrol — mobile tampil dulu */}
+          <div className="lg:col-span-3 min-w-0 order-1">
+            {/* Toolbar: Baris 1 = Tambah (FULL WIDTH), Baris 2 = Input + Refresh */}
+            <div className="mb-4 space-y-3">
+              {/* Baris 1: tombol tambah FULL WIDTH */}
+              <div className="w-full">
+                <button
+                  className="w-full bg-primary text-primary-foreground px-3 py-2 rounded hover:bg-primary/90"
+                  onClick={() => {
+                    setSelectedOdp(null);
+                    setModalOpen(true);
+                  }}
+                >
+                  + Tambah ODP
+                </button>
+              </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
+              {/* Baris 2: input & refresh 1 baris */}
+              <div className="flex items-stretch gap-2">
                 <input
                   type="text"
                   placeholder="Cari ODP…"
+                  aria-label="Cari ODP"
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  className="border rounded px-3 py-2 w-full sm:w-64"
+                  className="border rounded px-3 py-2 flex-1 min-w-0 sm:max-w-md"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") fetchData();
                   }}
                 />
                 <button
-                  className="bg-secondary text-secondary-foreground px-3 py-2 rounded hover:bg-secondary/90 flex items-center justify-center gap-2 w-full sm:w-auto"
+                  className="bg-secondary text-secondary-foreground px-3 py-2 rounded hover:bg-secondary/90 flex items-center justify-center gap-2 shrink-0"
                   title="Refresh data"
                   onClick={fetchData}
                 >
@@ -176,14 +205,19 @@ export default function OdpListPage() {
                   <Card key={_odp.id ?? index}>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-base">{_odp.name}</CardTitle>
-                      <CardDescription>{_odp.location}</CardDescription>
+                      <CardDescription className="break-words break-all hyphens-auto">
+                        {_odp.location}
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="text-sm grid grid-cols-2 gap-y-1">
                       <div className="text-muted-foreground">Wilayah</div>
-                      <div>{_odp.region}</div>
+                      <div className="break-words break-all hyphens-auto">
+                        {_odp.region}
+                      </div>
                       <div className="text-muted-foreground">Penggunaan</div>
                       <div>
-                        {_odp.usedPort} / {_odp.capacity}
+                        {typeof _odp.usedPort === "number" ? _odp.usedPort : 0}{" "}
+                        / {_odp.capacity}
                       </div>
                     </CardContent>
                     <CardFooter className="pt-2 flex justify-end gap-4">
@@ -224,13 +258,13 @@ export default function OdpListPage() {
               <div className="overflow-x-auto -mx-4 sm:mx-0">
                 <div className="inline-block min-w-full align-middle">
                   <div className="overflow-hidden border rounded">
-                    <Table className="min-w-[720px]">
+                    <Table className="min-w-full">
                       <TableHeader>
                         <TableRow>
                           <TableHead className="text-center w-14">No</TableHead>
                           <TableHead>Nama</TableHead>
                           <TableHead>Lokasi</TableHead>
-                          <TableHead className="whitespace-nowrap">
+                          <TableHead className="whitespace-nowrap hidden md:table-cell">
                             Wilayah
                           </TableHead>
                           <TableHead className="whitespace-nowrap">
@@ -252,19 +286,22 @@ export default function OdpListPage() {
                           odps.map((_odp, index) => (
                             <TableRow key={_odp.id ?? index}>
                               <TableCell className="text-center">
-                                {(page - 1) * 15 + index + 1}
+                                {(page - 1) * PAGE_SIZE + index + 1}
                               </TableCell>
-                              <TableCell className="max-w-[220px] truncate">
+                              <TableCell className="max-w-[240px] md:max-w-[280px] break-words md:truncate">
                                 {_odp.name}
                               </TableCell>
-                              <TableCell className="max-w-[260px] truncate">
+                              <TableCell className="max-w-[300px] md:max-w-[360px] break-words break-all hyphens-auto md:truncate">
                                 {_odp.location}
                               </TableCell>
-                              <TableCell className="max-w-[180px] truncate">
+                              <TableCell className="max-w-[220px] break-words break-all hyphens-auto md:truncate hidden md:table-cell">
                                 {_odp.region}
                               </TableCell>
                               <TableCell className="whitespace-nowrap">
-                                {_odp.usedPort} / {_odp.capacity}
+                                {typeof _odp.usedPort === "number"
+                                  ? _odp.usedPort
+                                  : 0}{" "}
+                                / {_odp.capacity}
                               </TableCell>
                               <TableCell className="text-center">
                                 <div className="flex justify-center gap-3">
@@ -311,12 +348,13 @@ export default function OdpListPage() {
             </div>
 
             {/* Pagination */}
-            <div className="mt-4 flex flex-wrap gap-2 items-center justify-between">
+            <div className="mt-4 flex flex-wrap gap-2 items-center justify-center sm:justify-between">
               <span className="text-sm">
                 Page {page} of {totalPages}
               </span>
               <div className="flex gap-2">
                 <button
+                  title="prev"
                   onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
                   disabled={page === 1}
                   className="bg-muted px-3 py-1 rounded disabled:opacity-50"
@@ -324,6 +362,7 @@ export default function OdpListPage() {
                   Previous
                 </button>
                 <button
+                  title="next"
                   onClick={() =>
                     setPage((prev) => Math.min(prev + 1, totalPages))
                   }
@@ -336,33 +375,15 @@ export default function OdpListPage() {
             </div>
           </div>
 
-          {/* KANAN: Peta */}
-          <div className="lg:col-span-4 min-w-0">
-            <Card className="h-full overflow-visible">
-              {" "}
-              {/* <-- penting */}
+          {/* KANAN: Peta — di mobile berada di bawah (order-2), sticky di desktop */}
+          <div className="lg:col-span-4 min-w-0 order-2">
+            <Card className="h-full overflow-visible lg:sticky lg:top-4">
               <CardHeader>
                 <CardTitle>Pemetaan</CardTitle>
               </CardHeader>
-              {/* izinkan anak “keluar” */}
               <CardContent className="overflow-visible p-0">
-                {" "}
-                {/* <-- penting */}
-                <div className="relative z-10 h-[50vh] min-h-[300px] max-h-[600px]">
-                  <OdpMap
-                    data={convertOdps(
-                      odps.map((_odp) => ({
-                        capacity: `${_odp.capacity}`,
-                        location: _odp.location,
-                        name: _odp.name,
-                        region: _odp.region,
-                        routerId: _odp.routerId!,
-                        id: _odp.id,
-                        latitude: _odp.latitude!,
-                        longitude: _odp.longitude,
-                      }))
-                    )}
-                  />
+                <div className="relative z-10 h-[55vh] sm:h-[60vh] md:h-[70vh] min-h-[320px] max-h-[720px]">
+                  <OdpMap data={mapData} />
                 </div>
               </CardContent>
               <CardFooter className="overflow-visible">
@@ -400,7 +421,7 @@ export default function OdpListPage() {
           </>
         }
         requiredText={odp.name}
-        matchMode="equals" // tidak case sensitive
+        matchMode="equals"
         confirmLabel="Hapus"
         cancelLabel="Batal"
         tone="danger"
