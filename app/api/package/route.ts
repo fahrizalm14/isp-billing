@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
       prisma.package.findMany({
         where: {
           OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { description: { contains: search, mode: "insensitive" } },
+            { name: { contains: search } },
+            { description: { contains: search } },
           ],
         },
         select: {
@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
       prisma.package.count({
         where: {
           OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { description: { contains: search, mode: "insensitive" } },
+            { name: { contains: search } },
+            { description: { contains: search } },
           ],
         },
       }),

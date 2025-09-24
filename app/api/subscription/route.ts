@@ -142,13 +142,12 @@ export async function GET(req: NextRequest) {
               userProfile: {
                 name: {
                   contains: search,
-                  mode: "insensitive",
                 },
               },
             },
-            { package: { name: { contains: search, mode: "insensitive" } } },
+            { package: { name: { contains: search } } },
             {
-              number: { contains: search, mode: "insensitive" },
+              number: { contains: search },
             },
           ],
         },
@@ -195,13 +194,12 @@ export async function GET(req: NextRequest) {
               userProfile: {
                 name: {
                   contains: search,
-                  mode: "insensitive",
                 },
               },
             },
-            { package: { name: { contains: search, mode: "insensitive" } } },
+            { package: { name: { contains: search } } },
             {
-              number: { contains: search, mode: "insensitive" },
+              number: { contains: search },
             },
           ],
         },

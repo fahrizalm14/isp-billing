@@ -13,9 +13,9 @@ export async function GET(req: NextRequest) {
       prisma.odp.findMany({
         where: {
           OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { location: { contains: search, mode: "insensitive" } },
-            { region: { contains: search, mode: "insensitive" } },
+            { name: { contains: search } },
+            { location: { contains: search } },
+            { region: { contains: search } },
           ],
         },
         select: {
@@ -43,9 +43,9 @@ export async function GET(req: NextRequest) {
       prisma.odp.count({
         where: {
           OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { location: { contains: search, mode: "insensitive" } },
-            { region: { contains: search, mode: "insensitive" } },
+            { name: { contains: search } },
+            { location: { contains: search } },
+            { region: { contains: search } },
           ],
         },
       }),

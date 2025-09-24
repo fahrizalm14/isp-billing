@@ -64,8 +64,8 @@ export const getCashFlows = async ({
       where: search
         ? {
             OR: [
-              { description: { contains: search, mode: "insensitive" } },
-              { reference: { contains: search, mode: "insensitive" } },
+              { description: { contains: search } },
+              { reference: { contains: search } },
             ],
           }
         : undefined,
@@ -77,8 +77,8 @@ export const getCashFlows = async ({
       where: search
         ? {
             OR: [
-              { description: { contains: search, mode: "insensitive" } },
-              { reference: { contains: search, mode: "insensitive" } },
+              { description: { contains: search } },
+              { reference: { contains: search } },
             ],
           }
         : undefined,

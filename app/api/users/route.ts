@@ -14,10 +14,7 @@ export async function GET(req: NextRequest) {
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where: {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
-          ],
+          OR: [{ name: { contains: search } }, { email: { contains: search } }],
         },
         skip,
         take: limit,
@@ -34,10 +31,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.user.count({
         where: {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
-          ],
+          OR: [{ name: { contains: search } }, { email: { contains: search } }],
         },
       }),
     ]);

@@ -15,16 +15,16 @@ export async function GET(req: NextRequest) {
       prisma.payment.findMany({
         where: {
           OR: [
-            { number: { contains: search, mode: "insensitive" } },
+            { number: { contains: search } },
             {
               subscription: {
                 OR: [
                   {
-                    number: { contains: search, mode: "insensitive" },
+                    number: { contains: search },
                   },
                   {
                     userProfile: {
-                      name: { contains: search, mode: "insensitive" },
+                      name: { contains: search },
                     },
                   },
                 ],
@@ -59,11 +59,11 @@ export async function GET(req: NextRequest) {
       prisma.payment.count({
         where: {
           OR: [
-            { number: { contains: search, mode: "insensitive" } },
-            { user: { name: { contains: search, mode: "insensitive" } } },
+            { number: { contains: search } },
+            { user: { name: { contains: search } } },
             {
               subscription: {
-                number: { contains: search, mode: "insensitive" },
+                number: { contains: search },
               },
             },
           ],

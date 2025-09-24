@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
       prisma.router.findMany({
         where: {
           OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { ipAddress: { contains: search, mode: "insensitive" } },
+            { name: { contains: search } },
+            { ipAddress: { contains: search } },
           ],
         },
         select: {
@@ -38,8 +38,8 @@ export async function GET(req: NextRequest) {
       prisma.router.count({
         where: {
           OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { ipAddress: { contains: search, mode: "insensitive" } },
+            { name: { contains: search } },
+            { ipAddress: { contains: search } },
           ],
         },
       }),
