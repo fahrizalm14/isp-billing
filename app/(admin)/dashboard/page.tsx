@@ -608,58 +608,74 @@ export default function Dashboard() {
                   Tidak ada data secrets.
                 </p>
               ) : (
-                <div className="overflow-auto rounded-md border">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50">
-                      <tr className="text-left">
-                        <th className="px-3 py-2 font-medium">Name</th>
-                        <th className="px-3 py-2 font-medium">Service</th>
-                        <th className="px-3 py-2 font-medium">Profile</th>
-                        <th
-                          className="px-3 py-2 font-medium cursor-pointer select-none"
-                          onClick={() => setSecretSortAsc((p) => !p)}
-                          title="Klik untuk ubah urutan status"
-                        >
-                          Status {secretSortAsc ? "↑" : "↓"}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...secretRecords]
-                        .sort((a, b) => {
-                          if (a.status === b.status)
-                            return a.name.localeCompare(b.name);
-                          if (secretSortAsc)
-                            return a.status === "active" ? -1 : 1;
-                          return a.status === "inactive" ? -1 : 1;
-                        })
-                        .map((sec) => (
-                          <tr
-                            key={sec.name}
-                            className="border-t hover:bg-muted/30"
-                          >
-                            <td className="px-3 py-2 font-mono text-xs">
-                              {sec.name}
-                            </td>
-                            <td className="px-3 py-2">{sec.service || "-"}</td>
-                            <td className="px-3 py-2">{sec.profile || "-"}</td>
-                            <td className="px-3 py-2">
-                              <span
-                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
-                                  sec.status === "active"
-                                    ? "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300"
-                                    : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300"
-                                }`}
-                              >
-                                {sec.status === "active"
-                                  ? "Active"
-                                  : "Inactive"}
-                              </span>
-                            </td>
+                <div className="rounded-md border">
+                  {/* horizontal scroll wrapper for small screens */}
+                  <div className="overflow-x-auto">
+                    {/* vertical scroll area with max-height; header will be sticky */}
+                    <div className="overflow-y-auto max-h-64 md:max-h-[36rem]">
+                      <table className="w-full text-sm min-w-[640px]">
+                        <thead className="bg-muted/50">
+                          <tr className="text-left">
+                            <th className="px-3 py-2 font-medium sticky top-0 z-20 bg-muted/50">
+                              Name
+                            </th>
+                            <th className="px-3 py-2 font-medium sticky top-0 z-20 bg-muted/50">
+                              Service
+                            </th>
+                            <th className="px-3 py-2 font-medium sticky top-0 z-20 bg-muted/50">
+                              Profile
+                            </th>
+                            <th
+                              className="px-3 py-2 font-medium cursor-pointer select-none sticky top-0 z-20 bg-muted/50"
+                              onClick={() => setSecretSortAsc((p) => !p)}
+                              title="Klik untuk ubah urutan status"
+                            >
+                              Status {secretSortAsc ? "↑" : "↓"}
+                            </th>
                           </tr>
-                        ))}
-                    </tbody>
-                  </table>
+                        </thead>
+                        <tbody>
+                          {[...secretRecords]
+                            .sort((a, b) => {
+                              if (a.status === b.status)
+                                return a.name.localeCompare(b.name);
+                              if (secretSortAsc)
+                                return a.status === "active" ? -1 : 1;
+                              return a.status === "inactive" ? -1 : 1;
+                            })
+                            .map((sec) => (
+                              <tr
+                                key={sec.name}
+                                className="border-t hover:bg-muted/30"
+                              >
+                                <td className="px-3 py-2 font-mono text-xs">
+                                  {sec.name}
+                                </td>
+                                <td className="px-3 py-2">
+                                  {sec.service || "-"}
+                                </td>
+                                <td className="px-3 py-2">
+                                  {sec.profile || "-"}
+                                </td>
+                                <td className="px-3 py-2">
+                                  <span
+                                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
+                                      sec.status === "active"
+                                        ? "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300"
+                                        : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300"
+                                    }`}
+                                  >
+                                    {sec.status === "active"
+                                      ? "Active"
+                                      : "Inactive"}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
