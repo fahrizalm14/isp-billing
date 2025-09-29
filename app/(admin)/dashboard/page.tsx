@@ -240,9 +240,16 @@ export default function Dashboard() {
     rawEstimatedMB === 0 ? 0 : Math.ceil(rawEstimatedMB / 3) * 3;
   // ----------------------------------------------------------------
 
+  // urutan ter-sort untuk reuse di table & mobile list
+  const sortedSecrets = [...secretRecords].sort((a, b) => {
+    if (a.status === b.status) return a.name.localeCompare(b.name);
+    if (secretSortAsc) return a.status === "active" ? -1 : 1;
+    return a.status === "inactive" ? -1 : 1;
+  });
+
   return (
     <>
-      <div className="flex-1 space-y-6">
+      <div className="flex-1 space-y-6 px-2 sm:px-4">
         {/* header + date range */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <h2 className="text-2xl font-semibold tracking-tight">Dashboard</h2>
@@ -356,8 +363,8 @@ export default function Dashboard() {
           <Card className="lg:col-span-7">
             <CardHeader>
               <CardTitle>Bandwidth Monitor</CardTitle>
-              <div className="flex flex-wrap gap-4 mt-2">
-                <div>
+              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4 mt-2">
+                <div className="min-w-[200px] sm:min-w-[180px] flex-1">
                   <label
                     htmlFor="router-select"
                     className="block text-sm font-medium mb-1"
@@ -367,7 +374,7 @@ export default function Dashboard() {
                   <select
                     id="router-select"
                     title="Pilih router"
-                    className="border rounded px-3 py-2 text-sm min-w-[180px] shadow-sm"
+                    className="border rounded px-3 py-2 text-sm w-full shadow-sm"
                     value={selectedRouterId}
                     onChange={(e) => setSelectedRouterId(e.target.value)}
                   >
@@ -378,8 +385,7 @@ export default function Dashboard() {
                     ))}
                   </select>
                 </div>
-
-                <div>
+                <div className="min-w-[200px] sm:min-w-[180px] flex-1">
                   <label
                     htmlFor="interface-select"
                     className="block text-sm font-medium mb-1"
@@ -387,12 +393,12 @@ export default function Dashboard() {
                     Interface
                   </label>
                   {loading ? (
-                    <SkeletonBox className="h-9 w-40" />
+                    <SkeletonBox className="h-9 w-full sm:w-40" />
                   ) : (
                     <select
                       id="interface-select"
                       title="Pilih interface"
-                      className="border rounded px-3 py-2 text-sm min-w-[180px] shadow-sm"
+                      className="border rounded px-3 py-2 text-sm w-full shadow-sm"
                       value={selectedInterface}
                       onChange={(e) => setSelectedInterface(e.target.value)}
                     >
@@ -569,7 +575,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* PPPoE Secrets Table */}
           <Card className="lg:col-span-4">
             <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
@@ -611,9 +616,50 @@ export default function Dashboard() {
                 <div className="rounded-md border">
                   {/* horizontal scroll wrapper for small screens */}
                   <div className="overflow-x-auto">
-                    {/* vertical scroll area with max-height; header will be sticky */}
-                    <div className="overflow-y-auto max-h-64 md:max-h-[36rem]">
-                      <table className="w-full text-sm min-w-[640px]">
+                    <div className="overflow-y-auto max-h-[50vh] md:max-h-[60vh]">
+                      {/* Mobile List (hidden on md+) */}
+                      <div className="md:hidden divide-y">
+                        {sortedSecrets.map((sec) => (
+                          <div
+                            key={sec.name}
+                            className="p-3 flex flex-col gap-1 text-xs"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className="font-mono font-medium truncate max-w-[60%]"
+                                title={sec.name}
+                              >
+                                {sec.name}
+                              </span>
+                              <span
+                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${
+                                  sec.status === "active"
+                                    ? "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300"
+                                    : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300"
+                                }`}
+                              >
+                                {sec.status}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
+                              <span>
+                                Service:{" "}
+                                <span className="text-foreground">
+                                  {sec.service || "-"}
+                                </span>
+                              </span>
+                              <span>
+                                Profile:{" "}
+                                <span className="text-foreground">
+                                  {sec.profile || "-"}
+                                </span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Desktop Table */}
+                      <table className="w-full text-sm min-w-[640px] hidden md:table">
                         <thead className="bg-muted/50">
                           <tr className="text-left">
                             <th className="px-3 py-2 font-medium sticky top-0 z-20 bg-muted/50">
@@ -635,43 +681,38 @@ export default function Dashboard() {
                           </tr>
                         </thead>
                         <tbody>
-                          {[...secretRecords]
-                            .sort((a, b) => {
-                              if (a.status === b.status)
-                                return a.name.localeCompare(b.name);
-                              if (secretSortAsc)
-                                return a.status === "active" ? -1 : 1;
-                              return a.status === "inactive" ? -1 : 1;
-                            })
-                            .map((sec) => (
-                              <tr
-                                key={sec.name}
-                                className="border-t hover:bg-muted/30"
+                          {sortedSecrets.map((sec) => (
+                            <tr
+                              key={sec.name}
+                              className="border-t hover:bg-muted/30"
+                            >
+                              <td
+                                className="px-3 py-2 font-mono text-xs max-w-[180px] truncate"
+                                title={sec.name}
                               >
-                                <td className="px-3 py-2 font-mono text-xs">
-                                  {sec.name}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {sec.service || "-"}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {sec.profile || "-"}
-                                </td>
-                                <td className="px-3 py-2">
-                                  <span
-                                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
-                                      sec.status === "active"
-                                        ? "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300"
-                                        : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300"
-                                    }`}
-                                  >
-                                    {sec.status === "active"
-                                      ? "Active"
-                                      : "Inactive"}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
+                                {sec.name}
+                              </td>
+                              <td className="px-3 py-2">
+                                {sec.service || "-"}
+                              </td>
+                              <td className="px-3 py-2">
+                                {sec.profile || "-"}
+                              </td>
+                              <td className="px-3 py-2">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
+                                    sec.status === "active"
+                                      ? "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300"
+                                      : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300"
+                                  }`}
+                                >
+                                  {sec.status === "active"
+                                    ? "Active"
+                                    : "Inactive"}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
                         </tbody>
                       </table>
                     </div>
