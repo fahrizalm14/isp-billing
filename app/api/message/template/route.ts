@@ -62,3 +62,43 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// DELETE template by id (query param ?id=...)
+export async function DELETE(req: NextRequest) {
+  try {
+    const id = req.nextUrl.searchParams.get("id");
+    if (!id) {
+      return NextResponse.json(
+        { message: "Parameter 'id' wajib diberikan" },
+        { status: 400 }
+      );
+    }
+
+    // attempt delete
+    const deleted = await prisma.template.delete({
+      where: { id },
+    });
+
+    return NextResponse.json(
+      {
+        message: "Template berhasil dihapus",
+        data: { ...deleted, nama: deleted.name },
+      },
+      { status: 200 }
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (err: any) {
+    console.error(err);
+    // Prisma will throw if not found
+    if (err?.code === "P2025") {
+      return NextResponse.json(
+        { message: "Template tidak ditemukan" },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json(
+      { message: "Gagal menghapus template" },
+      { status: 500 }
+    );
+  }
+}

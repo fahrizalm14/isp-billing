@@ -116,10 +116,11 @@ export const getInterface = async ({
   }
 
   const systemInfo = await getSystemInfo(ssh);
+  const secrets = await getSecretsStatus(ssh);
 
   ssh.dispose();
 
-  return { result, systemInfo };
+  return { result, systemInfo, secrets };
 };
 
 export type SystemInfo = {
@@ -362,3 +363,168 @@ export async function getSystemInfo(ssh: NodeSSH): Promise<SystemInfo> {
     uptime,
   };
 }
+
+export const getSecretsStatus = async (ssh: NodeSSH) => {
+  // Jalankan perintah dengan fallback tanpa "without-paging"
+  const execWithFallback = async (baseCmd: string) => {
+    let res = await ssh.execCommand(`${baseCmd} without-paging`);
+    if (res.stderr || !res.stdout) {
+      res = await ssh.execCommand(baseCmd);
+    }
+    return res;
+  };
+
+  const secretRes = await execWithFallback("/ppp secret print detail");
+  const activeRes = await execWithFallback("/ppp active print detail");
+
+  const rawSecretOut = (secretRes.stdout || secretRes.stderr || "").trim();
+  const rawActiveOut = (activeRes.stdout || activeRes.stderr || "").trim();
+
+  // Parser V2 (baru): dukung key=value (quoted / non-quoted) + colon style
+  const parseBlocks = (out: string) =>
+    out
+      .split(/\r?\n\r?\n+/)
+      .map((b) => b.trim())
+      .filter(Boolean);
+
+  const parseV2 = (out: string) => {
+    if (!out) return [];
+    return parseBlocks(out).map((block) => {
+      const obj: Record<string, string> = {};
+      const lines = block
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+
+      // Simpan index jika ada "0   name=..." di awal
+      const firstLine = lines[0] || "";
+      const idxMatch = firstLine.match(/^\s*(\d+)\s+(?=[A-Za-z0-9_.\-*]+=)/);
+      if (idxMatch) obj[".index"] = idxMatch[1];
+
+      // Gabungkan untuk ekstraksi key=value
+      const joined = lines.join(" ");
+
+      // key=value (quoted / non-quoted)
+      const kvRegex = /([A-Za-z0-9*_.\-\/]+)=(?:"([^"]*)"|([^"\s]+))/g;
+      let m: RegExpExecArray | null;
+      while ((m = kvRegex.exec(joined)) !== null) {
+        const key = m[1];
+        const val = m[2] ?? m[3] ?? "";
+        obj[key] = val;
+      }
+
+      // Field: value (format lama)
+      for (const line of lines) {
+        const cm = line.match(/^([A-Za-z0-9_.\-@]+):\s*(.+)$/);
+        if (cm) obj[cm[1]] = cm[2];
+      }
+
+      return obj;
+    });
+  };
+
+  // Parser V1 (lama) hanya "Field: value"
+  const parseV1 = (out: string) => {
+    if (!out) return [];
+    return parseBlocks(out).map((block) => {
+      const obj: Record<string, string> = {};
+      for (const line of block.split(/\r?\n/)) {
+        const m = line.match(/^([^:]+):\s*(.*)$/);
+        if (m) obj[m[1].trim()] = m[2].trim();
+      }
+      return obj;
+    });
+  };
+
+  // Coba parser baru
+  let secrets = parseV2(rawSecretOut);
+  // Fallback ke lama bila tidak efektif (tidak ada name/user)
+  const hasIdentity = secrets.some(
+    (o) =>
+      Object.keys(o).some((k) => k.toLowerCase() === "name") ||
+      Object.keys(o).some((k) => k.toLowerCase() === "user")
+  );
+  if (!secrets.length || !hasIdentity) {
+    secrets = parseV1(rawSecretOut);
+  }
+
+  // Active entries parse (pakai V2 dulu, fallback jika kosong)
+  let actives = parseV2(rawActiveOut);
+  if (!actives.length) actives = parseV1(rawActiveOut);
+
+  const findField = (obj: Record<string, string>, name: string) => {
+    const key = Object.keys(obj).find(
+      (k) => k.toLowerCase() === name.toLowerCase()
+    );
+    return key ? obj[key] : undefined;
+  };
+
+  // Map active (name/user -> object)
+  const activeMap = new Map<string, Record<string, string>>();
+  for (const a of actives) {
+    const n = findField(a, "name") || findField(a, "user") || "";
+    if (n) activeMap.set(n, a);
+  }
+
+  // Ambil last active dari beberapa kemungkinan field
+  const pickLastActive = (a?: Record<string, string> | null) => {
+    if (!a) return null;
+    const candidates = [
+      a["uptime"],
+      a["time"],
+      a["login-time"],
+      a["last-seen"],
+      a["last-login"],
+      a["connected"],
+      a["session-time"],
+    ].filter(Boolean) as string[];
+    return candidates.length ? candidates[0] : null;
+  };
+
+  // Detailed list
+  const detailed = secrets.map((s) => {
+    const username =
+      findField(s, "name") ||
+      findField(s, "user") ||
+      findField(s, "username") ||
+      "";
+    const password =
+      findField(s, "password") ||
+      findField(s, "pass") ||
+      findField(s, "secret") ||
+      "";
+    const profile = findField(s, "profile") || "";
+    const service = findField(s, "service") || "";
+    const lastLoggedOut =
+      findField(s, "last-logged-out") || findField(s, "last-logout") || "";
+    const activeEntry = username ? activeMap.get(username) : undefined;
+    const lastActive = pickLastActive(activeEntry);
+
+    return {
+      id: findField(s, ".id"),
+      username,
+      password,
+      profile,
+      service,
+      lastLoggedOut: lastLoggedOut || null,
+      lastActive,
+      isActive: !!activeEntry,
+      raw: s,
+    };
+  });
+
+  const active = detailed.filter((d) => d.isActive).map((d) => d.raw);
+  const inactive = detailed.filter((d) => !d.isActive).map((d) => d.raw);
+
+  // Jangan dispose di sini jika masih dipakai di luar; saat ini getInterface memanggil dispose setelahnya.
+  // (Biarkan seperti sebelumnya bila memang ingin dispose di sini, uncomment baris di bawah)
+  // ssh.dispose();
+
+  return {
+    // all: secrets,
+    active,
+    inactive,
+    // list: detailed,
+    // raw: { secretRes, activeRes },
+  };
+};

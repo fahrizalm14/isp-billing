@@ -49,10 +49,18 @@ export default function OdpSelectModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white dark:bg-zinc-900 w-full max-w-lg p-6 rounded-lg shadow-lg relative">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="bg-white dark:bg-zinc-900 w-full max-w-lg md:max-w-2xl mx-auto p-4 md:p-6 rounded-lg shadow-lg relative max-h-[90vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Pilih Odp</h2>
+          <h2 className="text-base md:text-lg font-semibold">Pilih Odp</h2>
           <button onClick={onClose} className="text-sm text-gray-500">
             X
           </button>
@@ -61,7 +69,7 @@ export default function OdpSelectModal({
         <input
           type="text"
           placeholder="Cari nama user..."
-          className="w-full border px-3 py-2 rounded text-sm mb-4"
+          className="w-full border px-3 py-2 rounded text-xs md:text-sm mb-4"
           value={search}
           onChange={(e) => {
             setPage(1); // Reset to first page on new search
@@ -69,12 +77,14 @@ export default function OdpSelectModal({
           }}
         />
 
-        <div className="overflow-x-auto min-h-[550px]">
-          <table className="w-full border text-sm">
+        <div className="flex-1 overflow-x-auto overflow-y-auto">
+          <table className="w-full border text-xs md:text-sm">
             <thead>
               <tr className="bg-primary text-left">
                 <th className="px-2 py-1 border">Nama</th>
-                <th className="px-2 py-1 border">Lokasi</th>
+                <th className="px-2 py-1 border hidden sm:table-cell">
+                  Lokasi
+                </th>
                 <th className="px-2 py-1 border text-center">Aksi</th>
               </tr>
             </thead>
@@ -95,7 +105,7 @@ export default function OdpSelectModal({
                 odps.map((_odp) => (
                   <tr key={_odp.id}>
                     <td className="px-2 py-1 border">{_odp.name}</td>
-                    <td className="px-2 py-1 border">{`${_odp.location} - ${_odp.region}`}</td>
+                    <td className="px-2 py-1 border hidden sm:table-cell">{`${_odp.location} - ${_odp.region}`}</td>
                     <td className="px-2 py-1 border text-center">
                       <button
                         onClick={() => {
@@ -114,7 +124,7 @@ export default function OdpSelectModal({
           </table>
         </div>
 
-        <div className="flex justify-between items-center mt-4 text-sm">
+        <div className="flex justify-between items-center mt-4 text-xs md:text-sm">
           <button
             onClick={() => setPage((p) => Math.max(p - 1, 1))}
             disabled={page === 1}

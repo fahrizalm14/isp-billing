@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
       success: true,
       interfaces: Array.from(interfaces),
       systemInfo: result.systemInfo,
+      secrets: result.secrets,
     });
   } catch (err) {
     return NextResponse.json(

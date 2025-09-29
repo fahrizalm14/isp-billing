@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import Loader from "@/components/ui/custom/loader";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type Router = { id: string; name: string };
 
@@ -37,6 +37,23 @@ type SystemInfo = {
   cpuLoad: { load1: number; load5: number; load15: number };
   uptime: string;
 };
+
+// tipe data PPPoE secret dari router
+type SecretRecord = {
+  name: string;
+  service?: string;
+  profile?: string;
+  status: "active" | "inactive";
+  [key: string]: unknown; // simpan field lain bila ada
+};
+
+// tipe raw dari API (active/inactive arrays) untuk secrets
+interface RawSecret {
+  name: string;
+  service?: string;
+  profile?: string;
+  [key: string]: unknown;
+}
 
 function SkeletonBox({ className }: { className?: string }) {
   return (
@@ -64,6 +81,10 @@ export default function Dashboard() {
   const [interfaces, setInterfaces] = useState<string[]>([]);
   const [selectedInterface, setSelectedInterface] = useState<string>("");
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
+  // secrets state
+  const [secretRecords, setSecretRecords] = useState<SecretRecord[]>([]);
+  const [secretCounts, setSecretCounts] = useState({ active: 0, inactive: 0 });
+  const [secretSortAsc, setSecretSortAsc] = useState(true); // true = active dulu
 
   // tambah state untuk last updated
   const [systemInfoUpdatedAt, setSystemInfoUpdatedAt] = useState<number | null>(
@@ -101,46 +122,80 @@ export default function Dashboard() {
   };
 
   // --- extracted fetch function (dapat dipanggil ulang untuk refresh) ---
-  const fetchRouterDetails = async (routerId?: string) => {
-    if (!routerId) return;
-    try {
-      setLoading(true);
-      const res = await fetch(`/api/router/mikrotik/${routerId}/interfaces`);
-      const json = await res.json();
+  const fetchRouterDetails = useCallback(
+    async (routerId?: string) => {
+      if (!routerId) return;
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/router/mikrotik/${routerId}/interfaces`);
+        const json = await res.json();
 
-      // simpan systemInfo jika ada
-      if (json?.systemInfo) {
-        setSystemInfo(json.systemInfo);
-        setSystemInfoUpdatedAt(Date.now());
-      } else {
-        setSystemInfo(null);
-      }
+        // simpan systemInfo jika ada
+        if (json?.systemInfo) {
+          setSystemInfo(json.systemInfo);
+          setSystemInfoUpdatedAt(Date.now());
+        } else {
+          setSystemInfo(null);
+        }
 
-      if (!res.ok) {
+        if (!res.ok) {
+          SwalToast.fire({
+            title: json.error || "Gagal memuat interfaces.",
+            icon: "warning",
+          });
+          setSelectedInterface("");
+          setInterfaces([]);
+          setSecretRecords([]);
+          setSecretCounts({ active: 0, inactive: 0 });
+          return;
+        }
+
+        // Bentuk baru: { secrets: { active: [...], inactive: [...] }, interfaces?: [...] }
+        if (json.secrets) {
+          const activeArr: SecretRecord[] = (json.secrets.active || []).map(
+            (it: RawSecret): SecretRecord => ({ ...it, status: "active" })
+          );
+          const inactiveArr: SecretRecord[] = (json.secrets.inactive || []).map(
+            (it: RawSecret): SecretRecord => ({ ...it, status: "inactive" })
+          );
+          const combined = [...activeArr, ...inactiveArr];
+          setSecretRecords(combined);
+          setSecretCounts({
+            active: activeArr.length,
+            inactive: inactiveArr.length,
+          });
+        } else {
+          setSecretRecords([]);
+          setSecretCounts({ active: 0, inactive: 0 });
+        }
+
+        // Interfaces untuk chart (jika memang disediakan API terpisah)
+        if (Array.isArray(json.interfaces) && json.interfaces.length > 0) {
+          setInterfaces(json.interfaces);
+          setSelectedInterface((curr) =>
+            curr && json.interfaces.includes(curr) ? curr : json.interfaces[0]
+          );
+        } else if (interfaces.length === 0) {
+          // jangan override jika sudah ada dari fetch sebelumnya
+          setInterfaces([]);
+          setSelectedInterface("");
+        }
+      } catch (error) {
         SwalToast.fire({
-          title: json.error || "Gagal memuat interfaces.",
+          title: String(error),
           icon: "warning",
         });
         setSelectedInterface("");
         setInterfaces([]);
-        return;
+        setSystemInfo(null);
+        setSecretRecords([]);
+        setSecretCounts({ active: 0, inactive: 0 });
+      } finally {
+        setLoading(false);
       }
-      if (json.success) {
-        setInterfaces(json.interfaces);
-        if (json.interfaces?.length) setSelectedInterface(json.interfaces[0]);
-      }
-    } catch (error) {
-      SwalToast.fire({
-        title: String(error),
-        icon: "warning",
-      });
-      setSelectedInterface("");
-      setInterfaces([]);
-      setSystemInfo(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [interfaces.length]
+  );
 
   // fetch routers
   useEffect(() => {
@@ -167,7 +222,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!selectedRouterId) return;
     fetchRouterDetails(selectedRouterId);
-  }, [selectedRouterId]);
+  }, [selectedRouterId, fetchRouterDetails]);
 
   // reload dashboard saat date range berubah
   useEffect(() => {
@@ -260,6 +315,42 @@ export default function Dashboard() {
           ))}
         </div>
 
+        {/* secrets counts cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Secrets Aktif
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <SkeletonBox className="h-8 w-20" />
+              ) : (
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                  {secretCounts.active}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Secrets Non-Aktif
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <SkeletonBox className="h-8 w-20" />
+              ) : (
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                  {secretCounts.inactive}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         {/* charts & tables */}
         <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-7">
           <Card className="lg:col-span-7">
@@ -315,13 +406,10 @@ export default function Dashboard() {
                 </div>
               </div>
             </CardHeader>
-
             <CardContent>
               {selectedRouterId && selectedInterface ? (
-                // modern layout: chart utama + system info panel
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1 min-h-[220px]">
-                    {/* NEW: estimasi di atas chart */}
                     <div className="flex items-center justify-end mb-2 gap-2">
                       <span className="text-xs text-muted-foreground">
                         Est. Bandwidth:
@@ -335,14 +423,11 @@ export default function Dashboard() {
                         ) : null}
                       </div>
                     </div>
-
                     <BandwidthChart
                       routerId={selectedRouterId}
                       interfaces={selectedInterface}
                     />
                   </div>
-
-                  {/* --- Modern System Info panel --- */}
                   <aside className="w-full md:w-64">
                     <div className="border border-transparent hover:border-neutral-700 transition rounded-lg p-3">
                       <div className="flex items-start justify-between gap-2">
@@ -352,7 +437,6 @@ export default function Dashboard() {
                             {systemInfo?.boardName ?? "—"}
                           </p>
                         </div>
-
                         <div className="flex items-center gap-2">
                           <button
                             aria-label="Refresh system info"
@@ -360,7 +444,6 @@ export default function Dashboard() {
                             className="inline-flex items-center justify-center p-1.5 rounded-md hover:bg-white/5"
                             title="Refresh"
                           >
-                            {/* simple refresh icon */}
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               className="h-4 w-4"
@@ -378,13 +461,11 @@ export default function Dashboard() {
                           </button>
                         </div>
                       </div>
-
                       <div className="mt-3 space-y-3 text-xs text-muted-foreground">
                         <div className="flex justify-between">
                           <span className="font-semibold">Version</span>
                           <span>{systemInfo?.version ?? "—"}</span>
                         </div>
-
                         <div>
                           <div className="flex justify-between mb-1">
                             <span className="font-semibold text-xs">
@@ -417,7 +498,6 @@ export default function Dashboard() {
                             />
                           </div>
                         </div>
-
                         <div>
                           <div className="flex justify-between mb-1">
                             <span className="font-semibold text-xs">
@@ -443,12 +523,10 @@ export default function Dashboard() {
                             />
                           </div>
                         </div>
-
                         <div className="flex justify-between">
                           <span className="font-semibold">Uptime</span>
                           <span>{systemInfo?.uptime ?? "—"}</span>
                         </div>
-
                         <div className="flex justify-between text-[10px] text-muted-foreground">
                           <span>Last updated</span>
                           <span>
@@ -487,6 +565,102 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <PopularPackageTable data={dashboard?.topPackages ?? []} />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* PPPoE Secrets Table */}
+          <Card className="lg:col-span-4">
+            <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <CardTitle>PPPoE Secrets</CardTitle>
+                <CardDescription>
+                  Daftar secrets (aktif & non-aktif)
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSecretSortAsc((p) => !p)}
+                  className="text-xs px-3 py-1 rounded-md border hover:bg-muted"
+                  title="Urutkan Active dulu / Non-Active dulu"
+                >
+                  Sort Status:{" "}
+                  {secretSortAsc ? "Active→Inactive" : "Inactive→Active"}
+                </button>
+                <button
+                  onClick={() => fetchRouterDetails(selectedRouterId)}
+                  className="text-xs px-3 py-1 rounded-md border hover:bg-muted"
+                  title="Refresh Secrets"
+                >
+                  Refresh
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-2">
+                  {[...Array(6)].map((_, i) => (
+                    <SkeletonBox key={i} className="h-5 w-full" />
+                  ))}
+                </div>
+              ) : secretRecords.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Tidak ada data secrets.
+                </p>
+              ) : (
+                <div className="overflow-auto rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr className="text-left">
+                        <th className="px-3 py-2 font-medium">Name</th>
+                        <th className="px-3 py-2 font-medium">Service</th>
+                        <th className="px-3 py-2 font-medium">Profile</th>
+                        <th
+                          className="px-3 py-2 font-medium cursor-pointer select-none"
+                          onClick={() => setSecretSortAsc((p) => !p)}
+                          title="Klik untuk ubah urutan status"
+                        >
+                          Status {secretSortAsc ? "↑" : "↓"}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...secretRecords]
+                        .sort((a, b) => {
+                          if (a.status === b.status)
+                            return a.name.localeCompare(b.name);
+                          if (secretSortAsc)
+                            return a.status === "active" ? -1 : 1;
+                          return a.status === "inactive" ? -1 : 1;
+                        })
+                        .map((sec) => (
+                          <tr
+                            key={sec.name}
+                            className="border-t hover:bg-muted/30"
+                          >
+                            <td className="px-3 py-2 font-mono text-xs">
+                              {sec.name}
+                            </td>
+                            <td className="px-3 py-2">{sec.service || "-"}</td>
+                            <td className="px-3 py-2">{sec.profile || "-"}</td>
+                            <td className="px-3 py-2">
+                              <span
+                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
+                                  sec.status === "active"
+                                    ? "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300"
+                                    : "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300"
+                                }`}
+                              >
+                                {sec.status === "active"
+                                  ? "Active"
+                                  : "Inactive"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </CardContent>
           </Card>

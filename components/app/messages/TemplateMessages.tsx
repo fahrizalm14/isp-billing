@@ -3,6 +3,7 @@
 import RichTextEditor from "@/components/RichTextEditor";
 import { SwalToast } from "@/components/SweetAlert";
 import { Button } from "@/components/ui/button";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -106,6 +107,47 @@ const TemplateMessages: React.FC<TemplateMessageProps> = ({
       setLoading(false);
     }
   };
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingName, setDeletingName] = useState<string>("");
+
+  async function handleDeleteConfirm() {
+    if (!deletingId) return;
+    try {
+      setLoading(true);
+      const res = await fetch(
+        `/api/message/template?id=${encodeURIComponent(deletingId)}`,
+        {
+          method: "DELETE",
+        }
+      );
+      const result = await res.json();
+      if (!res.ok) {
+        SwalToast.fire({
+          title: result.message || "Gagal menghapus template",
+          icon: "error",
+        });
+        return;
+      }
+      SwalToast.fire({
+        title: result.message || "Template dihapus",
+        icon: "success",
+      });
+      fetchTemplates();
+    } catch (err) {
+      SwalToast.fire({
+        title: "Terjadi kesalahan jaringan",
+        text: (err as Error).message,
+        icon: "error",
+      });
+    } finally {
+      setLoading(false);
+      setConfirmOpen(false);
+      setDeletingId(null);
+      setDeletingName("");
+    }
+  }
 
   return (
     <section className="rounded-lg border bg-background">
@@ -226,6 +268,21 @@ const TemplateMessages: React.FC<TemplateMessageProps> = ({
                           dangerouslySetInnerHTML={{ __html: preview }}
                         />
                       </div>
+
+                      {/* Delete button */}
+                      <div className="flex justify-end">
+                        <Button
+                          variant="destructive"
+                          className="bg-destructive text-destructive-foreground"
+                          onClick={() => {
+                            setDeletingId(tpl.id);
+                            setDeletingName(tpl.nama ?? tpl?.name ?? "");
+                            setConfirmOpen(true);
+                          }}
+                        >
+                          Hapus Template
+                        </Button>
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -272,6 +329,21 @@ const TemplateMessages: React.FC<TemplateMessageProps> = ({
                           dangerouslySetInnerHTML={{ __html: preview }}
                         />
                       </div>
+
+                      {/* Delete button */}
+                      <div className="flex justify-end">
+                        <Button
+                          variant="destructive"
+                          className="bg-destructive text-destructive-foreground"
+                          onClick={() => {
+                            setDeletingId(tpl.id);
+                            setDeletingName(tpl.nama ?? tpl?.name ?? "");
+                            setConfirmOpen(true);
+                          }}
+                        >
+                          Hapus Template
+                        </Button>
+                      </div>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -280,6 +352,34 @@ const TemplateMessages: React.FC<TemplateMessageProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Confirm dialog (single instance) */}
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={(o) => {
+          if (!loading) setConfirmOpen(o);
+          if (!o) {
+            setDeletingId(null);
+            setDeletingName("");
+          }
+        }}
+        title="Hapus Template?"
+        description={
+          <span>
+            Anda akan menghapus template <strong>{deletingName}</strong>.
+            Tindakan ini tidak dapat dibatalkan.
+          </span>
+        }
+        requiredText={deletingName}
+        inputPlaceholder={deletingName}
+        hint="Ketik nama template (tidak case-sensitive) untuk konfirmasi."
+        matchMode="iequals"
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        tone="danger"
+        onConfirm={handleDeleteConfirm}
+        disableInput={deletingName === ""}
+      />
     </section>
   );
 };

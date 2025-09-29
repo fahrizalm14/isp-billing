@@ -42,6 +42,7 @@ export const dummyContext = {
 export interface IMessageTemplate {
   id: string;
   nama: string;
+  name?: string;
   content: string; // with {{vars}}
 }
 
