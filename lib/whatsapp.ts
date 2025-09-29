@@ -31,7 +31,7 @@ function sleep(ms: number) {
 // Worker untuk memproses pesan QUEUED / FAILED
 export async function processMessages() {
   const messages = await prisma.message.findMany({
-    where: { status: { in: ["QUEUED", "FAILED"] } },
+    where: { status: { in: ["QUEUED"] } },
     orderBy: { createdAt: "asc" },
     take: 20,
   });
