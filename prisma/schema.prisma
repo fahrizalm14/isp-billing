@@ -216,7 +216,7 @@ model Message {
   id         String  @id @default(cuid())
   triggerKey String? // null kalau direct/manual
   toNumber   String
-  content    String
+  content    String  @db.Text
   status     String // QUEUED, SENT, FAILED
   error      String?
 
