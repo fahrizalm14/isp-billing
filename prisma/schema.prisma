@@ -191,7 +191,7 @@ model Cashflow {
 model Template {
   id        String    @id @default(cuid())
   name      String
-  content   String // "Halo {{customerName}}, pendaftaran berhasil."
+  content   String    @db.Text // "Halo {{customerName}}, pendaftaran berhasil."
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   triggers  Trigger[]

@@ -7,8 +7,15 @@ export function toProfileName(key: string): string {
 }
 
 export function getGatewayFromPool(poolRange: string): string {
-  const startIP = poolRange.split("-")[0]; // ambil IP pertama pool
-  const parts = startIP.split(".").map(Number);
+  const partsRaw = (poolRange || "").split("-")[0] || "";
+  const startIP = partsRaw.trim();
+  const parts = startIP.split(".").map((p) => Number(p));
+
+  // fallback jika format IP tidak lengkap -> kembalikan string input
+  if (parts.length !== 4 || parts.some((n) => Number.isNaN(n))) {
+    // coba extract terakhir berupa angka, jika gagal, kembalikan startIP apa adanya
+    return startIP;
+  }
 
   // Kurangi 1 di oktet terakhir untuk dapat gateway
   parts[3] = parts[3] - 1;

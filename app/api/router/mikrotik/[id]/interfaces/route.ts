@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       port: Number(router.port),
     });
 
-    const output = result.stdout;
+    const output = result.result.stdout;
     const nameRegex = /name="([^"]+)"/g;
 
     const interfaces = new Set<string>();
@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       interfaces: Array.from(interfaces),
+      systemInfo: result.systemInfo,
     });
   } catch (err) {
     return NextResponse.json(

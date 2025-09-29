@@ -5,15 +5,6 @@ const { NodeSSH } = await import("node-ssh");
 
 /**
  * Membuat profile PPPoE baru di MikroTik
- * @param {Object} config - Konfigurasi koneksi dan profil
- * @param {string} config.host - IP address MikroTik
- * @param {string} config.username - Username login SSH
- * @param {string} config.password - Password login SSH
- * @param {Object} profile - Data profil PPPoE
- * @param {string} profile.name - Nama profil
- * @param {string} profile.localAddress - Alamat lokal
- * @param {string} profile.remoteAddress - Pool untuk remote IP
- * @param {string} profile.rateLimit - Limitasi kecepatan (contoh: "2M/2M")
  */
 
 export async function createProfilePPPOE(
@@ -31,49 +22,41 @@ export async function createProfilePPPOE(
   }
 ) {
   const ssh = new NodeSSH();
-  // try {
-  const command = `ppp profile add name=${toProfileKey(
-    profile.name
-  )} local-address=${toProfileKey(
-    profile.localAddress
-  )} remote-address=${toProfileKey(profile.remoteAddress)} rate-limit=${
-    profile.rateLimit
-  }`;
+  try {
+    const command1 = `ppp profile add name=${toProfileKey(
+      profile.name
+    )} local-address=${toProfileKey(
+      profile.localAddress
+    )} remote-address=${toProfileKey(profile.remoteAddress)} rate-limit=${
+      profile.rateLimit
+    }`;
 
-  await ssh.connect({
-    host: config.host,
-    username: config.username,
-    password: config.password,
-    port: config.port,
-    tryKeyboard: true,
-  });
+    await ssh.connect({
+      host: config.host,
+      username: config.username,
+      password: config.password,
+      port: config.port,
+      tryKeyboard: true,
+    });
 
-  const result = await ssh.execCommand(command);
+    let result = await ssh.execCommand(command1);
 
-  if (result.stderr) {
-    throw new Error(`Gagal menambahkan profil PPPoE: ${result.stderr}`);
+    // fallback: pakai nilai asli (tanpa toProfileKey) dan dengan quoting
+    if (result.stderr) {
+      const command2 = `ppp profile add name="${profile.name}" local-address="${profile.localAddress}" remote-address="${profile.remoteAddress}" rate-limit="${profile.rateLimit}"`;
+      result = await ssh.execCommand(command2);
+    }
+
+    if (result.stderr) {
+      throw new Error(`Gagal menambahkan profil PPPoE: ${result.stderr}`);
+    }
+  } finally {
+    ssh.dispose();
   }
-
-  ssh.dispose();
-
-  //   console.log("Berhasil membuat profil PPPoE:", result.stdout);
-  // } catch (err) {
-  //   if (err instanceof Error) {
-  //     console.error("Terjadi kesalahan:", err.message);
-  //     throw new Error(`Gagal membuat profil PPPoE: ${err.message}`);
-  //   } else {
-  //     console.error("Terjadi kesalahan:", err);
-  //     throw new Error("Gagal membuat profil PPPoE: Unknown error");
-  //   }
-  // } finally {
-  //   ssh.dispose();
-  // }
 }
 
 /**
  * Menghapus profil PPPoE berdasarkan nama
- * @param config Konfigurasi SSH ke MikroTik
- * @param profileName Nama profil PPPoE yang ingin dihapus
  */
 export async function deletePppoeProfile(
   config: { host: string; username: string; password: string; port: number },
@@ -81,55 +64,62 @@ export async function deletePppoeProfile(
 ) {
   const { NodeSSH } = await import("node-ssh");
   const ssh = new NodeSSH();
-  // try {
-  await ssh.connect({
-    host: config.host,
-    username: config.username,
-    password: config.password,
-    port: config.port,
-    tryKeyboard: true,
-  });
+  try {
+    await ssh.connect({
+      host: config.host,
+      username: config.username,
+      password: config.password,
+      port: config.port,
+      tryKeyboard: true,
+    });
 
-  // Cari ID profile berdasarkan nama
-  const findResult = await ssh.execCommand(
-    `/ppp profile print where name="${profileName}"`
-  );
+    // Coba cari dengan perintah sederhana
+    let findResult = await ssh.execCommand(
+      `/ppp profile print where name="${profileName}"`
+    );
 
-  const match = findResult.stdout.match(/^\s*(\d+)\s+name="/m);
-  if (!match) {
-    console.log(`Profil "${profileName}" tidak ditemukan.`);
-    return;
+    // Jika tidak ditemukan atau format berbeda, coba print detail dan cari id
+    let match = (findResult.stdout || "").match(/^\s*(\d+)\s+name="/m);
+    if (!match) {
+      const detailRes = await ssh.execCommand(
+        `/ppp profile print detail where name="${profileName}"`
+      );
+      // coba cari "0   name="... atau cari index di awal baris
+      match = (detailRes.stdout || "").match(/^\s*(\d+)\s+/m);
+      if (!match) {
+        // fallback: coba remove langsung via [find name="..."]
+        const deleteDirect = await ssh.execCommand(
+          `/ppp profile remove [find name="${profileName}"]`
+        );
+        if (deleteDirect.stderr) {
+          throw new Error(`Gagal menghapus profil: ${deleteDirect.stderr}`);
+        }
+        ssh.dispose();
+        console.log(`Profil "${profileName}" berhasil dihapus.`);
+        return;
+      } else {
+        findResult = detailRes;
+      }
+    }
+
+    const id = match[1];
+
+    // Hapus berdasarkan ID
+    const deleteResult = await ssh.execCommand(`/ppp profile remove ${id}`);
+    console.log("Hasil penghapusan:", deleteResult.stdout);
+
+    if (deleteResult.stderr) {
+      throw new Error(`Gagal menghapus profil: ${deleteResult.stderr}`);
+    }
+
+    console.log(`Profil "${profileName}" berhasil dihapus.`);
+  } finally {
+    ssh.dispose();
   }
-
-  const id = match[1];
-
-  // Hapus berdasarkan ID
-  const deleteResult = await ssh.execCommand(`/ppp profile remove ${id}`);
-  console.log("Hasil penghapusan:", deleteResult.stdout);
-
-  if (deleteResult.stderr) {
-    throw new Error(`Gagal menghapus profil: ${deleteResult.stderr}`);
-  }
-
-  ssh.dispose();
-
-  console.log(`Profil "${profileName}" berhasil dihapus.`);
-  // } catch (err) {
-  //   if (err instanceof Error) {
-  //     console.error("Terjadi kesalahan:", err.message);
-  //   } else {
-  //     console.error("Terjadi kesalahan:", err);
-  //   }
-  // } finally {
-  //   ssh.dispose();
-  // }
 }
 
 /**
  * Ambil profil PPPoE berdasarkan nama
- * @param config Konfigurasi SSH ke MikroTik
- * @param profileName Nama profil PPPoE yang ingin diambil
- * @returns objek profil atau null jika tidak ditemukan
  */
 export async function getPppoeProfile(
   config: { host: string; username: string; password: string; port: number },
@@ -151,13 +141,20 @@ export async function getPppoeProfile(
     tryKeyboard: true,
   });
 
-  const result = await ssh.execCommand(
+  // coba bentuk ringkas dulu
+  let result = await ssh.execCommand(
     `/ppp profile print where name="${profileName}"`
   );
 
   if (result.stderr) {
-    ssh.dispose();
-    throw new Error(`Gagal mengambil profil PPPoE: ${result.stderr}`);
+    // fallback: coba detail tanpa-paging atau tanpa modifier
+    result = await ssh.execCommand(
+      `/ppp profile print detail where name="${profileName}"`
+    );
+    if (result.stderr) {
+      ssh.dispose();
+      throw new Error(`Gagal mengambil profil PPPoE: ${result.stderr}`);
+    }
   }
 
   const stdout = result.stdout || "";
@@ -166,9 +163,35 @@ export async function getPppoeProfile(
     return null;
   }
 
-  // Cari baris yang berisi entry (mis. "0   name="... local-address=... remote-address=... rate-limit=...")
+  // Pertama coba parse single-line index-format
   const lineMatch = stdout.match(/^\s*\d+\s+(.*)$/m);
-  const rawLine = lineMatch ? lineMatch[1] : stdout.split("\n").join(" ");
+  let rawLine = lineMatch ? lineMatch[1] : "";
+
+  // Jika tidak ketemu, coba parse detail dengan format "key: value" (RouterOS detail)
+  if (!rawLine) {
+    const lines = stdout
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length > 0 && lines[0].includes(":")) {
+      const attrs: Record<string, string> = {};
+      for (const line of lines) {
+        const m = line.match(/^([^:]+):\s*(.*)$/);
+        if (m) attrs[m[1].trim()] = m[2].trim().replace(/^"(.*)"$/, "$1");
+      }
+      ssh.dispose();
+      return {
+        name: attrs["name"],
+        localAddress: attrs["local-address"],
+        remoteAddress: attrs["remote-address"],
+        rateLimit: attrs["rate-limit"],
+        raw: lines.join(" "),
+      };
+    } else {
+      // fallback: gunakan seluruh stdout sebagai raw
+      rawLine = stdout.split("\n").join(" ");
+    }
+  }
 
   // Parse pasangan key=value (mendukung nilai ber-quote atau tidak)
   const attrs: Record<string, string> = {};
@@ -177,7 +200,6 @@ export async function getPppoeProfile(
   while ((m = re.exec(rawLine))) {
     const key = m[1];
     const val = m[3] ?? m[2];
-    // Trim surrounding quotes jika ada
     attrs[key] = String(val).replace(/^"(.*)"$/, "$1");
   }
 
@@ -194,8 +216,6 @@ export async function getPppoeProfile(
 
 /**
  * Ambil semua profil PPPoE
- * @param config Konfigurasi SSH ke MikroTik
- * @returns array profil (bisa kosong)
  */
 export async function getAllPppoeProfiles(config: {
   host: string;
@@ -221,7 +241,15 @@ export async function getAllPppoeProfiles(config: {
     tryKeyboard: true,
   });
 
-  const result = await ssh.execCommand(`/ppp profile print`);
+  let result = await ssh.execCommand(`/ppp profile print`);
+
+  if (result.stderr) {
+    // fallback: detail full (mungkin format berbeda)
+    result = await ssh.execCommand(`/ppp profile print detail without-paging`);
+    if (result.stderr) {
+      result = await ssh.execCommand(`/ppp profile print detail`);
+    }
+  }
 
   if (result.stderr) {
     ssh.dispose();
@@ -234,12 +262,37 @@ export async function getAllPppoeProfiles(config: {
     return [];
   }
 
-  // Ambil setiap baris entry yang dimulai dengan index (0,1,2,...)
+  // Pertama coba format index-lines
   const entries: string[] = [];
   const lineRe = /^\s*\d+\s+(.*)$/gm;
   let lm: RegExpExecArray | null;
   while ((lm = lineRe.exec(stdout))) {
     entries.push(lm[1]);
+  }
+
+  // Jika tidak ada entries, coba parse blocks key: value (detail mode)
+  if (entries.length === 0) {
+    const blocks = stdout
+      .split(/\r?\n\r?\n/)
+      .map((b) => b.trim())
+      .filter(Boolean);
+    for (const b of blocks) {
+      // jika b berformat "key: value" per baris
+      if (b.includes(":")) {
+        const attrs: Record<string, string> = {};
+        for (const line of b.split(/\r?\n/)) {
+          const m = line.match(/^([^:]+):\s*(.*)$/);
+          if (m) attrs[m[1].trim()] = m[2].trim().replace(/^"(.*)"$/, "$1");
+        }
+        const rawLine = Object.entries(attrs)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(" ");
+        entries.push(rawLine);
+      } else {
+        // fallback: tambahkan seluruh block sebagai raw
+        entries.push(b.replace(/\r?\n/g, " "));
+      }
+    }
   }
 
   const profiles = entries.map((rawLine) => {
