@@ -4,6 +4,7 @@ import { PaymentStatus } from "./generated/prisma";
 import { generatePaymentNumber } from "./numbering";
 import { prisma } from "./prisma";
 import { runTriggers } from "./runTriggers";
+import { activateSubscription } from "./subscription";
 
 interface IGetPaymentLink {
   id: string;
@@ -93,6 +94,12 @@ export const billing = async ({
   });
 
   if (!payment) throw new Error("Pembayaran tidak tersedia!");
+
+  await activateSubscription(
+    subscriptionId,
+    subscription.dueDate,
+    subscription.expiredAt
+  );
 
   // update payment
   await prisma.payment.update({
@@ -218,26 +225,30 @@ export async function createPayment({
   packageName: string;
   subscriptionId: string;
 }) {
+  let paymentLink = "";
   const id = createId();
   const number = await generatePaymentNumber();
 
-  const paymentLink = await getPaymentLink({
-    amount,
-    id,
-    customer: {
-      email: `${customerName.split(" ").join("")}@mail.id`,
-      name: customerName,
-      phone: validPhoneNumber,
-    },
-    items: [
-      {
-        id: packageId,
-        name: packageName,
-        price: amount,
-        quantity: 1,
+  const web = await prisma.websiteInfo.findFirst();
+  if (web?.midtransSecretKey && web.midtransServerKey) {
+    paymentLink = await getPaymentLink({
+      amount,
+      id,
+      customer: {
+        email: `${customerName.split(" ").join("")}@mail.id`,
+        name: customerName,
+        phone: validPhoneNumber,
       },
-    ],
-  });
+      items: [
+        {
+          id: packageId,
+          name: packageName,
+          price: amount,
+          quantity: 1,
+        },
+      ],
+    });
+  }
 
   await prisma.payment.create({
     data: {

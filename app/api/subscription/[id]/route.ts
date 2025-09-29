@@ -162,7 +162,8 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { customerName, customerPhone, address, odpId, packageId } = body;
+    const { customerName, customerPhone, address, odpId, packageId, dueDate } =
+      body;
 
     const subs = await prisma.subscription.findUnique({
       where: { id },
@@ -217,6 +218,7 @@ export async function PUT(
         odp: { connect: { id: odpId } },
         package: { connect: { id: packageId } },
         updatedAt: new Date(),
+        dueDate,
       },
       include: {
         package: { include: { router: true } }, // ambil router baru
@@ -241,7 +243,7 @@ export async function PUT(
             port: router.port,
           },
           {
-            profile: updatedSubscription.package.name,
+            profile: updatedSubscription.package.profileName,
             name: userPPPOE.username,
           }
         );

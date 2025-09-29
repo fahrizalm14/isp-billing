@@ -104,8 +104,15 @@ export function BillingModal({
     setLoading(true);
     try {
       const res = await fetch(`/api/midtrans/${id}`);
-      const url = await res.json();
-      window.open(url, "_blank", "noopener,noreferrer");
+      if (res.ok) {
+        const url = await res.json();
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        SwalToast.fire({
+          icon: "error",
+          title: "Gagal membuat payment gateway.",
+        });
+      }
     } catch (error) {
       console.error(error);
       SwalToast.fire({

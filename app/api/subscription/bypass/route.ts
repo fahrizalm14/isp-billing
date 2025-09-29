@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
               port: router.port,
             },
             {
-              profile: subs.package.name,
+              profile: subs.package.profileName,
               name: userPPPOE.username,
             }
           );

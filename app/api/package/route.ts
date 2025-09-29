@@ -1,5 +1,3 @@
-import { decrypt } from "@/lib/crypto";
-import { getGatewayFromPool } from "@/lib/mikrotik/adapator";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -81,6 +79,7 @@ export async function POST(req: NextRequest) {
       rateLimit,
       price,
       active = true,
+      profileName,
     } = body;
 
     const router = await prisma.router.findUnique({
@@ -93,23 +92,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { createProfilePPPOE } = await import("@/lib/mikrotik/profile");
+    // const { createProfilePPPOE } = await import("@/lib/mikrotik/profile");
 
-    const convertLocalAddress = getGatewayFromPool(localAddress);
-    await createProfilePPPOE(
-      {
-        host: router.ipAddress,
-        username: router.apiUsername,
-        password: decrypt(router.apiPassword),
-        port: Number(router.port) || 22,
-      },
-      {
-        name,
-        localAddress: convertLocalAddress,
-        remoteAddress: poolName,
-        rateLimit: rateLimit || "0",
-      }
-    );
+    // const convertLocalAddress = getGatewayFromPool(localAddress);
+    // await createProfilePPPOE(
+    //   {
+    //     host: router.ipAddress,
+    //     username: router.apiUsername,
+    //     password: decrypt(router.apiPassword),
+    //     port: Number(router.port) || 22,
+    //   },
+    //   {
+    //     name,
+    //     localAddress: convertLocalAddress,
+    //     remoteAddress: poolName,
+    //     rateLimit: rateLimit || "0",
+    //   }
+    // );
 
     const newPackage = await prisma.package.create({
       data: {
@@ -117,10 +116,11 @@ export async function POST(req: NextRequest) {
         description,
         routerId,
         poolName,
-        localAddress: convertLocalAddress,
+        localAddress,
         rateLimit,
         price,
         active,
+        profileName,
       },
     });
     if (!newPackage) {

@@ -37,14 +37,22 @@ const PackageSchema = z.object({
   price: z.string().min(1),
   active: z.boolean().optional(),
   id: z.string().optional(),
+  profileName: z.string().optional(),
 });
 
 export type PackageForm = z.infer<typeof PackageSchema>;
 
-type PoolResponse = {
+// type PoolResponse = {
+//   name: string;
+//   ranges: string;
+//   localAddress: string;
+// };
+
+type ProfileResponse = {
   name: string;
-  ranges: string;
-  localAddress: string;
+  raw: string;
+  localAddress?: string;
+  remoteAddress?: string;
 };
 
 type Props = {
@@ -64,7 +72,7 @@ export default function PackageFormModal({
 }: Props) {
   const isEdit = !!initialData;
   const [loading, setLoading] = useState(false);
-  const [pools, setPools] = useState<PoolResponse[]>([]);
+  const [pools, setPools] = useState<ProfileResponse[]>([]);
   const [poolLoading, setPoolLoading] = useState(false);
 
   const {
@@ -92,16 +100,18 @@ export default function PackageFormModal({
     fetchPools(selectedRouterId);
   }, [isEdit, selectedRouterId]);
 
-  const selectedPool = watch("poolName");
+  const selectedProfile = watch("profileName");
   useEffect(() => {
-    const selected = pools.find((p) => p.name === selectedPool);
+    const selected = pools.find((p) => p.name === selectedProfile);
     if (selected) {
       reset((prev) => ({
         ...prev,
-        localAddress: selected.ranges,
+        localAddress: selected.localAddress ?? "",
+        profileName: selected.name,
+        poolName: selected.remoteAddress ?? "",
       }));
     }
-  }, [pools, reset, selectedPool]);
+  }, [pools, reset, selectedProfile]);
 
   const fetchPools = async (routerId: string) => {
     if (!routerId) {
@@ -111,10 +121,10 @@ export default function PackageFormModal({
     setPoolLoading(true);
 
     try {
-      const res = await fetch(`/api/router/mikrotik/${routerId}/pool`);
+      const res = await fetch(`/api/router/mikrotik/${routerId}/profile`);
       if (res.ok) {
         const data = await res.json();
-        setPools(data.pools);
+        setPools(data.result);
       } else {
         SwalToast.fire({
           icon: "error",
@@ -238,25 +248,25 @@ export default function PackageFormModal({
             </div>
 
             {poolLoading ? (
-              "Memuat pool dari mikrotik..."
+              "Memuat profile dari mikrotik..."
             ) : (
               <div>
                 <label
                   htmlFor="poolName"
                   className="block text-sm font-medium mb-1"
                 >
-                  Pool
+                  Profile
                 </label>
                 <select
-                  id="poolName"
-                  {...register("poolName")}
+                  id="profileName"
+                  {...register("profileName")}
                   className="w-full border px-3 py-2 rounded text-sm"
                   disabled={isEdit}
                 >
-                  <option value="">Pilih Pool</option>
+                  <option value="">Pilih profile</option>
                   {pools.map((p) => (
                     <option key={p.name} value={p.name}>
-                      {p.name} ({p.ranges})
+                      {p.name} - {p.remoteAddress} - {p.localAddress}
                     </option>
                   ))}
                 </select>

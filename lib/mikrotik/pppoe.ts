@@ -27,13 +27,16 @@ export async function createUserPPPOE(
     name: string;
     password: string;
     profile: string;
+    localAddress?: string;
   }
 ) {
   const ssh = new NodeSSH();
   // try {
   const command = `/ppp secret add name=${user.name} password=${
     user.password
-  } service=${"pppoe"} profile=${toProfileKey(user.profile)}`;
+  } service=${"pppoe"} profile=${user.profile}${
+    user.localAddress ? ` local-address=${user.localAddress}` : ""
+  }`;
 
   await ssh.connect({
     host: config.host,
@@ -131,9 +134,7 @@ export async function movePPPOEToProfile(
 ) {
   const ssh = new NodeSSH();
   // try {
-  const command = `/ppp secret set [find name=${
-    user.name
-  }] profile=${toProfileKey(user.profile)}`;
+  const command = `/ppp secret set [find name=${user.name}] profile=${user.profile}`;
 
   await ssh.connect({
     host: config.host,
@@ -154,15 +155,4 @@ export async function movePPPOEToProfile(
     result.stdout
   );
   ssh.dispose();
-  // } catch (err) {
-  //   if (err instanceof Error) {
-  //     console.error("Terjadi kesalahan:", err.message);
-  //     throw new Error(`Gagal memindahkan user PPPoE: ${err.message}`);
-  //   } else {
-  //     console.error("Terjadi kesalahan:", err);
-  //     throw new Error("Gagal memindahkan user PPPoE: Unknown error");
-  //   }
-  // } finally {
-  //   ssh.dispose();
-  // }
 }

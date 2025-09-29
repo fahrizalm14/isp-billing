@@ -119,6 +119,7 @@ model Package {
   router        Router         @relation(fields: [routerId], references: [id])
   poolName      String
   localAddress  String
+  profileName   String         @default("")
   rateLimit     String?
   price         Int
   active        Boolean        @default(true)

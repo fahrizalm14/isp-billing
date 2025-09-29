@@ -33,11 +33,16 @@ export const activateSubscription = async (
 
   // jika tidak ada user PPPOE maka buat baru
   if (!subscription.usersPPPOE.length) {
+    const web = await prisma.websiteInfo.findFirst();
     // generate user
     const userPPPOE = {
-      name: generateRandomPrefix("pppoe", 4),
-      password: generateRandomPrefix("pppoe", 4),
-      profile: subscription?.package.name || "",
+      name: subscription.number,
+      password: generateRandomPrefix(
+        (web?.alias || "pppoe").replace(/[^a-zA-Z0-9]/g, "").toLowerCase(),
+        5
+      ),
+      profile: subscription?.package.profileName || "",
+      localAddress: subscription.package.localAddress,
     };
 
     // buat user pppoe di mikrotik
@@ -52,6 +57,7 @@ export const activateSubscription = async (
         name: userPPPOE.name,
         password: userPPPOE.password,
         profile: userPPPOE.profile,
+        // localAddress: userPPPOE.localAddress,
       }
     );
     // create table user pppoe

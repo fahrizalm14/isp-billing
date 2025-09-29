@@ -34,6 +34,7 @@ const SubscriptionSchema = z.object({
   odpId: z.string().min(1, "ODP wajib dipilih"),
   packageId: z.string().min(1, "Paket wajib dipilih"),
   taxAmount: z.number().min(0),
+  dueDate: z.string().optional(),
 });
 
 type SubscriptionFormData = z.infer<typeof SubscriptionSchema>;
@@ -59,6 +60,7 @@ const EMPTY_SUBS: SubscriptionFormData = {
   odpId: "",
   packageId: "",
   taxAmount: 0,
+  dueDate: "",
 };
 
 export default function SubscriptionFormModal({
@@ -114,6 +116,7 @@ export default function SubscriptionFormModal({
             odpId: data.odpId || "", // pakai ID dari API
             packageId: data.packageId || "", // pakai ID dari API
             taxAmount: 0,
+            dueDate: data.dueDate || "",
           });
 
           setOdpName(data.odp || "");
@@ -137,6 +140,7 @@ export default function SubscriptionFormModal({
         odpId: form.odpId,
         packageId: form.packageId,
         taxAmount: form.taxAmount,
+        dueDate: form.dueDate,
       };
 
       const res = await fetch(
@@ -278,18 +282,29 @@ export default function SubscriptionFormModal({
               </div>
             </div>
 
-            {/* TAX */}
-            <div>
-              <label>PPN (%)</label>
-              <Input
-                type="number"
-                {...register("taxAmount", { valueAsNumber: true })}
-              />
-              {errors.taxAmount && (
-                <p className="text-sm text-red-500">
-                  {errors.taxAmount.message}
-                </p>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* TAX */}
+              <div>
+                <label>Tanggal Kontrak</label>
+                <Input type="date" {...register("dueDate")} />
+                {errors.dueDate && (
+                  <p className="text-sm text-red-500">
+                    {errors.dueDate.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label>PPN (%)</label>
+                <Input
+                  type="number"
+                  {...register("taxAmount", { valueAsNumber: true })}
+                />
+                {errors.taxAmount && (
+                  <p className="text-sm text-red-500">
+                    {errors.taxAmount.message}
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">

@@ -28,6 +28,7 @@ export async function POST(req: Request) {
       address,
       odpId,
       packageId,
+      dueDate,
     } = body;
     const newAddress = address as Address;
 
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
 
     const subs = await prisma.subscription.create({
       data: {
-        dueDate: "",
+        dueDate,
         number,
         packageId,
         odpId,

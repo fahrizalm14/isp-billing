@@ -99,5 +99,5 @@ export function generateRandomPrefix(
   for (let i = 0; i < length; i++) {
     suffix += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return `${prefix}${suffix}`;
+  return `${suffix}@${prefix}`;
 }

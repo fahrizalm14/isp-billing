@@ -20,7 +20,7 @@ const DialogOverlay = React.forwardRef<
     ref={ref}
     className={cn(
       // z-40 agar elemen z-50 masih di atas overlay (content ada di z-50)
-      "fixed inset-0 z-99940 bg-black/80",
+      "fixed inset-0 z-[99940] bg-black/80",
       "data-[state=open]:animate-in data-[state=open]:fade-in-0",
       "data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
       className
@@ -41,7 +41,7 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         // Base box
-        "fixed z-99950 grid gap-4 border bg-background p-6 shadow-lg outline-none",
+        "fixed z-[99950] grid gap-4 border bg-background p-6 shadow-lg outline-none",
         // MOBILE first: aman dari overflow horizontal, beri margin sisi
         "inset-x-4 top-[10svh]",
         // DESKTOP: center pakai translate
