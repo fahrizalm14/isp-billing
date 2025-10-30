@@ -1,16 +1,16 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState } from "react";
-import { showConfirm, SwalToast } from "./SweetAlert";
+import { SwalToast } from "./SweetAlert";
 
 interface PaymentDetailModalProps {
   open: boolean;
@@ -63,46 +63,37 @@ export function BillingModal({
   };
 
   const handleManualPayment = async () => {
-    if (
-      await showConfirm(
-        "Eiiits..",
-        "question",
-        false,
-        "Apakah kamu yakin akan melanjutkan pembayaran manual?"
-      )
-    ) {
-      try {
-        setLoading(true);
+    try {
+      setLoading(true);
 
-        const res = await fetch(`/api/payment/${id}`, {
-          method: "POST",
-          body: JSON.stringify({ reference }),
-          headers: { "Content-Type": "application/json" },
-        });
+      const res = await fetch(`/api/payment/${id}`, {
+        method: "POST",
+        body: JSON.stringify({ reference }),
+        headers: { "Content-Type": "application/json" },
+      });
 
-        if (!res.ok)
-          return SwalToast.fire({
-            icon: "error",
-            title: "Gagak melakukan pembayaran manual.",
-          });
-        await getPaymentById();
-
-        SwalToast.fire({
-          icon: "success",
-          title: "Berhasil melakukan pembayaran manual.",
-        });
-        setReference("");
-        onSuccess();
-      } catch (error) {
-        console.log(error);
-
-        SwalToast.fire({
+      if (!res.ok)
+        return SwalToast.fire({
           icon: "error",
           title: "Gagak melakukan pembayaran manual.",
         });
-      } finally {
-        setLoading(false);
-      }
+      await getPaymentById();
+
+      SwalToast.fire({
+        icon: "success",
+        title: "Berhasil melakukan pembayaran manual.",
+      });
+      setReference("");
+      onSuccess();
+    } catch (error) {
+      console.log(error);
+
+      SwalToast.fire({
+        icon: "error",
+        title: "Gagak melakukan pembayaran manual.",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -289,4 +280,3 @@ export function BillingModal({
     </Dialog>
   );
 }
-
