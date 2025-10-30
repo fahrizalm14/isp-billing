@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { fillTemplate } from "@/types/helper";
+import { calculatePaymentTotals } from "./paymentTotals";
 
 /**
  * Jalankan trigger otomatis berdasarkan key
@@ -48,13 +49,31 @@ export async function runTriggers(
   const lastPayment = subs.payments?.length ? subs.payments[0] : null;
 
   // siapkan context variabel template
+  const totals = lastPayment
+    ? calculatePaymentTotals({
+        amount: lastPayment.amount,
+        discount: lastPayment.discount ?? 0,
+        taxPercent: lastPayment.tax ?? 0,
+      })
+    : null;
+
   const context = {
     nama: subs.userProfile?.name ?? "",
     paket: subs.package?.name ?? "",
     noLangganan: subs.number,
     userPPP: ppp?.username ?? "",
     passwordPPP: ppp?.password ?? "",
-    amount: lastPayment ? lastPayment.amount.toString() : "",
+    amount: totals ? totals.total.toString() : "",
+    amountFormatted: totals ? totals.total.toLocaleString("id-ID") : "",
+    discount: totals ? totals.discount.toString() : "0",
+    discountFormatted: totals
+      ? totals.discount.toLocaleString("id-ID")
+      : "0",
+    taxPercent: totals ? totals.taxPercent.toString() : "0",
+    taxValue: totals ? totals.taxValue.toString() : "0",
+    taxValueFormatted: totals
+      ? totals.taxValue.toLocaleString("id-ID")
+      : "0",
     periode: subs.dueDate ?? "",
     paymentLink: lastPayment?.paymentLink ?? "",
   };

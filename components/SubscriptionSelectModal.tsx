@@ -17,6 +17,7 @@ interface Subscription {
   routerName: string;
   packageName: string;
   packagePrice: number;
+  discount: number;
   status: boolean;
   remainingDays: number;
   expiredAt: string;
@@ -92,7 +93,11 @@ export default function SubscriptionSelectModal({
                     </p>
                     <p className="text-xs text-gray-500">
                       {s.packageName} ( Rp{" "}
-                      {s.packagePrice.toLocaleString("id-ID")}) | {s.routerName}{" "}
+                      {s.packagePrice.toLocaleString("id-ID")}
+                      {s.discount
+                        ? ` • Diskon Rp ${s.discount.toLocaleString("id-ID")}`
+                        : ""}
+                      ) | {s.routerName}{" "}
                       / {s.odpName}
                     </p>
                     <p className="text-xs text-gray-400">

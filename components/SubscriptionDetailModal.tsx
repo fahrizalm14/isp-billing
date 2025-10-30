@@ -7,7 +7,10 @@ interface PaymentHistory {
   id: string;
   number: string;
   amount: number;
+  discount: number;
+  netAmount: number;
   tax: number;
+  taxValue: number;
   status: string;
   paymentMethod: string | null;
   createdAt: string;
@@ -26,6 +29,7 @@ interface SubscriptionResponse {
   customerAddress: string;
   packageName: string;
   packageSpeed: string;
+  discount: number;
   username?: string; // ✅ tambah
   password?: string; // ✅ tambah
   payments: PaymentHistory[];
@@ -117,11 +121,15 @@ export default function SubscriptionDetailModal({
 
               {/* Package, ODP & Secret Info */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 shadow-sm">
-                  <h3 className="font-medium mb-2 text-sm">Paket</h3>
-                  <InfoItem label="Nama" value={data.packageName} />
-                  <InfoItem label="Speed" value={data.packageSpeed} />
-                </div>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 shadow-sm">
+                <h3 className="font-medium mb-2 text-sm">Paket</h3>
+                <InfoItem label="Nama" value={data.packageName} />
+                <InfoItem label="Speed" value={data.packageSpeed} />
+                <InfoItem
+                  label="Diskon Langganan"
+                  value={`Rp ${(data.discount ?? 0).toLocaleString("id-ID")}`}
+                />
+              </div>
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 shadow-sm">
                   <h3 className="font-medium mb-2 text-sm">ODP & Router</h3>
                   <InfoItem label="ODP" value={data.odp} />
@@ -144,7 +152,10 @@ export default function SubscriptionDetailModal({
                       <tr>
                         <th className="text-left px-3 py-1.5">Tanggal</th>
                         <th className="text-left px-3 py-1.5">No. Tagihan</th>
-                        <th className="text-left px-3 py-1.5">Jumlah</th>
+                        <th className="text-left px-3 py-1.5">Subtotal</th>
+                        <th className="text-left px-3 py-1.5">Diskon</th>
+                        <th className="text-left px-3 py-1.5">Pajak</th>
+                        <th className="text-left px-3 py-1.5">Total</th>
                         <th className="text-left px-3 py-1.5">Status</th>
                         <th className="text-left px-3 py-1.5">Metode</th>
                       </tr>
@@ -164,6 +175,15 @@ export default function SubscriptionDetailModal({
                           <td className="px-3 py-1.5">{p.number}</td>
                           <td className="px-3 py-1.5">
                             Rp {p.amount.toLocaleString("id-ID")}
+                          </td>
+                          <td className="px-3 py-1.5">
+                            Rp {(p.discount ?? 0).toLocaleString("id-ID")}
+                          </td>
+                          <td className="px-3 py-1.5">
+                            {p.tax}% (Rp {(p.taxValue ?? 0).toLocaleString("id-ID")})
+                          </td>
+                          <td className="px-3 py-1.5">
+                            Rp {p.netAmount.toLocaleString("id-ID")}
                           </td>
                           <td className="px-3 py-1.5">
                             <span
@@ -186,7 +206,7 @@ export default function SubscriptionDetailModal({
                       {!data.payments.length && (
                         <tr>
                           <td
-                            colSpan={5}
+                            colSpan={8}
                             className="text-center text-gray-500 py-3"
                           >
                             Belum ada riwayat pembayaran

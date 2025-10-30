@@ -30,6 +30,9 @@ interface PaymentSummary {
   customer: string;
   subscriptionNumber: string;
   amount: number;
+  subtotal: number;
+  discount: number;
+  taxValue: number;
   tax: number;
   status: string;
   createdAt: string;
@@ -268,8 +271,12 @@ export default function PaymentPage() {
                 <TableCell>{pay.customer}</TableCell>
                 <TableCell>{pay.subscriptionNumber}</TableCell>
                 <TableCell>
-                  Rp {pay.amount.toLocaleString("id-ID")}
-                  {pay.tax > 0 && ` + ${pay.tax}%`}
+                  <div className="font-semibold">
+                    Rp {pay.amount.toLocaleString("id-ID")}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Subtotal Rp {pay.subtotal.toLocaleString("id-ID")} - Diskon Rp {pay.discount.toLocaleString("id-ID")} + Pajak ({pay.tax}% ) Rp {pay.taxValue.toLocaleString("id-ID")}
+                  </p>
                 </TableCell>
                 <TableCell>
                   <span

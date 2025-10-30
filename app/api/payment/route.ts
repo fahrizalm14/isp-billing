@@ -1,4 +1,5 @@
 import { createPayment } from "@/lib/payment";
+import { calculatePaymentTotals } from "@/lib/paymentTotals";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import z from "zod";
@@ -39,6 +40,7 @@ export async function GET(req: NextRequest) {
           id: true,
           number: true,
           amount: true,
+          discount: true,
           tax: true,
           status: true,
           createdAt: true,
@@ -72,17 +74,28 @@ export async function GET(req: NextRequest) {
     ]);
 
     // Mapping ke struktur untuk table UI
-    const mapped = payments.map((p) => ({
-      id: p.id,
-      number: p.number, // Nomor Tagihan
-      customer: p.subscription?.userProfile.name || "-", // Customer
-      subscriptionNumber: p.subscription?.number || "-", // Subscription
-      amount: p.amount, // Jumlah
-      tax: p.tax,
-      status: p.status, // Status
-      createdAt: p.createdAt.toISOString(), // Tgl Dibuat
-      expiredAt: p.expiredAt ? p.expiredAt.toISOString() : "", // Jatuh Tempo
-    }));
+    const mapped = payments.map((p) => {
+      const totals = calculatePaymentTotals({
+        amount: p.amount,
+        discount: p.discount ?? 0,
+        taxPercent: p.tax ?? 0,
+      });
+
+      return {
+        id: p.id,
+        number: p.number, // Nomor Tagihan
+        customer: p.subscription?.userProfile.name || "-", // Customer
+        subscriptionNumber: p.subscription?.number || "-", // Subscription
+        subtotal: totals.baseAmount,
+        discount: totals.discount,
+        tax: totals.taxPercent,
+        taxValue: totals.taxValue,
+        amount: totals.total, // Jumlah akhir (setelah diskon + pajak)
+        status: p.status, // Status
+        createdAt: p.createdAt.toISOString(), // Tgl Dibuat
+        expiredAt: p.expiredAt ? p.expiredAt.toISOString() : "", // Jatuh Tempo
+      };
+    });
 
     return NextResponse.json({
       data: mapped,
@@ -104,6 +117,7 @@ const PaymentSchema = z.object({
   amount: z.number().positive(),
   taxAmount: z.number().min(0),
   subscriptionId: z.string().min(1),
+  discount: z.number().min(0).default(0),
 });
 
 export async function POST(req: NextRequest) {
@@ -150,6 +164,7 @@ export async function POST(req: NextRequest) {
       packageId: subscription.package.id,
       packageName: subscription.package.name,
       taxAmount: parsed.data.taxAmount,
+      discountAmount: parsed.data.discount,
       validPhoneNumber: subscription.userProfile.phone || "",
     });
 

@@ -74,6 +74,16 @@ export const activateSubscription = async (
       where: { id: subscription.id || "" },
     });
   } else {
+    const targetProfile = subscription.package.profileName;
+    if (!targetProfile) {
+      throw new Error("Profile MikroTik untuk paket tidak ditemukan");
+    }
+
+    const existingUser = subscription.usersPPPOE[0];
+    if (!existingUser) {
+      throw new Error("User PPPoE untuk langganan belum tersedia");
+    }
+
     await movePPPOEToProfile(
       {
         host: subscription?.package.router.ipAddress || "",
@@ -82,8 +92,8 @@ export const activateSubscription = async (
         port: Number(subscription?.package.router.port) || 22,
       },
       {
-        profile: subscription.package.name,
-        name: subscription.usersPPPOE[0].username,
+        profile: targetProfile,
+        name: existingUser.username,
       }
     );
   }
@@ -125,6 +135,11 @@ export const deactivateSubscription = async (
     },
   });
 
+  const existingUser = subscription.usersPPPOE[0];
+  if (!existingUser) {
+    throw new Error("User PPPoE untuk langganan belum tersedia");
+  }
+
   await movePPPOEToProfile(
     {
       host: subscription?.package.router.ipAddress || "",
@@ -134,7 +149,7 @@ export const deactivateSubscription = async (
     },
     {
       profile: "isolir",
-      name: subscription.usersPPPOE[0].username,
+      name: existingUser.username,
     }
   );
   await runTriggers("DEACTIVATE_SUBSCRIPTION", subscriptionId);

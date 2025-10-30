@@ -5,6 +5,7 @@ import { generatePaymentNumber } from "./numbering";
 import { prisma } from "./prisma";
 import { runTriggers } from "./runTriggers";
 import { activateSubscription } from "./subscription";
+import { calculatePaymentTotals } from "./paymentTotals";
 
 interface IGetPaymentLink {
   id: string;
@@ -109,7 +110,11 @@ export const billing = async ({
       transactionId,
       Cashflow: {
         create: {
-          amount: payment.amount,
+          amount: calculatePaymentTotals({
+            amount: payment.amount,
+            discount: payment.discount ?? 0,
+            taxPercent: payment.tax ?? 0,
+          }).total,
           type: "INCOME",
           description: `${subscription.number}- ${subscription.userProfile.name}`,
           reference: payment.number,
@@ -210,14 +215,17 @@ export function formatDate(date: Date): string {
 export async function createPayment({
   amount,
   taxAmount,
+  discountAmount = 0,
   validPhoneNumber,
   customerName,
+  email,
   packageId,
   packageName,
   subscriptionId,
 }: {
   amount: number;
   taxAmount: number;
+  discountAmount?: number;
   validPhoneNumber: string;
   customerName: string;
   email: string;
@@ -228,11 +236,16 @@ export async function createPayment({
   let paymentLink = "";
   const id = createId();
   const number = await generatePaymentNumber();
+  const totals = calculatePaymentTotals({
+    amount,
+    discount: discountAmount,
+    taxPercent: taxAmount,
+  });
 
   const web = await prisma.websiteInfo.findFirst();
   if (web?.midtransSecretKey && web.midtransServerKey) {
     paymentLink = await getPaymentLink({
-      amount,
+      amount: totals.total,
       id,
       customer: {
         email: `${customerName.split(" ").join("")}@mail.id`,
@@ -243,7 +256,7 @@ export async function createPayment({
         {
           id: packageId,
           name: packageName,
-          price: amount,
+          price: totals.total,
           quantity: 1,
         },
       ],
@@ -253,8 +266,9 @@ export async function createPayment({
   await prisma.payment.create({
     data: {
       id,
-      amount,
-      tax: taxAmount,
+      amount: totals.baseAmount,
+      discount: totals.discount,
+      tax: totals.taxPercent,
       number,
       paymentLink,
       paymentMethod: "",

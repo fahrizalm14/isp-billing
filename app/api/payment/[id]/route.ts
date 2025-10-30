@@ -1,4 +1,5 @@
 import { billing } from "@/lib/payment";
+import { calculatePaymentTotals } from "@/lib/paymentTotals";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -38,6 +39,7 @@ export async function GET(
                 name: true,
               },
             },
+            number: true,
             userProfile: { select: { name: true } },
           },
         },
@@ -52,6 +54,10 @@ export async function GET(
     }
     interface paymentDetail {
       amount: number;
+      discount: number;
+      netAmount: number;
+      taxAmount: number;
+      taxValue: number;
       status: string;
       transactionNumber: string;
       number: string;
@@ -60,18 +66,34 @@ export async function GET(
       packageName: string;
       createdAt: Date;
       dueDate?: Date | null;
+      expiredAt?: Date | null;
+      subscriptionId: string | null;
+      subscriptionNumber: string;
     }
+
+    const totals = calculatePaymentTotals({
+      amount: paymentDetail.amount,
+      discount: paymentDetail.discount ?? 0,
+      taxPercent: paymentDetail.tax ?? 0,
+    });
 
     const data: paymentDetail = {
       transactionNumber: paymentDetail.number,
-      amount: paymentDetail.amount,
+      amount: totals.baseAmount,
+      discount: totals.discount,
+      netAmount: totals.total,
+      taxAmount: totals.taxPercent,
+      taxValue: totals.taxValue,
       createdAt: paymentDetail.createdAt,
       status: paymentDetail.status as string,
       packageName: paymentDetail.subscription?.package.name || "-",
+      subscriptionNumber: paymentDetail.subscription?.number || "",
       customer: paymentDetail.subscription?.userProfile.name || "-",
       id: paymentDetail.id,
       number: paymentDetail.number,
       dueDate: paymentDetail.expiredAt,
+      expiredAt: paymentDetail.expiredAt,
+      subscriptionId: paymentDetail.subscriptionId,
     };
 
     return NextResponse.json({ data }, { status: 200 });

@@ -32,6 +32,39 @@ const findSecretByName = async (
   return undefined;
 };
 
+const resolveProfileName = async (
+  connection: RouterOSConnection,
+  profile: string
+) => {
+  const normalized = (profile || "").trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  const candidates = [normalized];
+  const keyed = toProfileKey(normalized);
+  if (keyed && !candidates.includes(keyed)) {
+    candidates.push(keyed);
+  }
+  const lower = normalized.toLowerCase();
+  if (lower && !candidates.includes(lower)) {
+    candidates.push(lower);
+  }
+
+  for (const candidate of candidates) {
+    const result = await executeCommand(connection, "/ppp/profile/print", [
+      `?name=${candidate}`,
+    ]);
+    if (result.code === 0 && result.data.length > 0) {
+      const record = result.data[0];
+      const name = toStringValue(record["name"]);
+      return name || candidate;
+    }
+  }
+
+  return undefined;
+};
+
 /**
  * Membuat user PPPoE baru di MikroTik
  */
@@ -131,13 +164,20 @@ export async function movePPPOEToProfile(
     const identifier =
       toStringValue(secret[".id"]) || toStringValue(secret["name"]);
 
+    const targetProfile = await resolveProfileName(connection, user.profile);
+    if (!targetProfile) {
+      throw new Error(
+        `Profil PPPoE "${user.profile}" tidak ditemukan di MikroTik`
+      );
+    }
+
     await connection.write("/ppp/secret/set", [
       `=.id=${identifier}`,
-      `=profile=${user.profile}`,
+      `=profile=${targetProfile}`,
     ]);
 
     console.log(
-      `Berhasil memindahkan user ${user.name} ke profile ${user.profile}`
+      `Berhasil memindahkan user ${user.name} ke profile ${targetProfile}`
     );
   } catch (error) {
     const message =

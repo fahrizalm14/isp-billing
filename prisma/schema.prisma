@@ -140,6 +140,7 @@ model Subscription {
   active        Boolean     @default(false)
   expiredAt     DateTime? // masa aktif langganan dinamis (akan)
   dueDate       String
+  discount      Int         @default(0)
   isAudited     Boolean     @default(false) // sudah di audit apa belum? jika sudah maka audit hari berikutnya tidak akan masuk task
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -164,6 +165,7 @@ model Payment {
   subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
   subscriptionId String?
   amount         Int
+  discount       Int           @default(0)
   tax            Float
   status         PaymentStatus @default(PENDING)
   paymentLink    String        @default("")

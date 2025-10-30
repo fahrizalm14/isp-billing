@@ -19,12 +19,12 @@ import { Button } from "./ui/button";
 
 // ✅ Address schema
 const AddressSchema = z.object({
-  street: z.string().min(1, "Jalan wajib diisi"),
-  subDistrict: z.string().min(1, "Kelurahan wajib diisi"),
-  district: z.string().min(1, "Kecamatan wajib diisi"),
-  city: z.string().min(1, "Kota wajib diisi"),
-  province: z.string().min(1, "Provinsi wajib diisi"),
-  postalCode: z.string().min(1, "Kode pos wajib diisi"),
+  street: z.string().min(1, "Alamat wajib diisi"),
+  subDistrict: z.string().optional(),
+  district: z.string().optional(),
+  city: z.string().optional(),
+  province: z.string().optional(),
+  postalCode: z.string().optional(),
 });
 
 const SubscriptionSchema = z.object({
@@ -34,6 +34,7 @@ const SubscriptionSchema = z.object({
   odpId: z.string().min(1, "ODP wajib dipilih"),
   packageId: z.string().min(1, "Paket wajib dipilih"),
   taxAmount: z.number().min(0),
+  discount: z.number().min(0),
   dueDate: z.string().optional(),
 });
 
@@ -60,6 +61,7 @@ const EMPTY_SUBS: SubscriptionFormData = {
   odpId: "",
   packageId: "",
   taxAmount: 0,
+  discount: 0,
   dueDate: "",
 };
 
@@ -116,6 +118,7 @@ export default function SubscriptionFormModal({
             odpId: data.odpId || "", // pakai ID dari API
             packageId: data.packageId || "", // pakai ID dari API
             taxAmount: 0,
+            discount: data.discount || 0,
             dueDate: data.dueDate || "",
           });
 
@@ -140,6 +143,7 @@ export default function SubscriptionFormModal({
         odpId: form.odpId,
         packageId: form.packageId,
         taxAmount: form.taxAmount,
+        discount: form.discount,
         dueDate: form.dueDate,
       };
 
@@ -215,15 +219,15 @@ export default function SubscriptionFormModal({
             </div>
 
             {/* ADDRESS */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
               {(
                 [
-                  { label: "Jalan", name: "street" },
-                  { label: "Kelurahan", name: "subDistrict" },
-                  { label: "Kecamatan", name: "district" },
-                  { label: "Kota", name: "city" },
-                  { label: "Provinsi", name: "province" },
-                  { label: "Kode Pos", name: "postalCode" },
+                  { label: "Alamat", name: "street" },
+                  // { label: "Kelurahan", name: "subDistrict" },
+                  // { label: "Kecamatan", name: "district" },
+                  // { label: "Kota", name: "city" },
+                  // { label: "Provinsi", name: "province" },
+                  // { label: "Kode Pos", name: "postalCode" },
                 ] as const
               ).map((field) => (
                 <div key={field.label}>
@@ -282,7 +286,7 @@ export default function SubscriptionFormModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* TAX */}
               <div>
                 <label>Tanggal Kontrak</label>
@@ -297,11 +301,25 @@ export default function SubscriptionFormModal({
                 <label>PPN (%)</label>
                 <Input
                   type="number"
-                  {...register("taxAmount", { valueAsNumber: true })}
+                  min={0}
+                  {...register("taxAmount", { valueAsNumber: true, min: 0 })}
                 />
                 {errors.taxAmount && (
                   <p className="text-sm text-red-500">
                     {errors.taxAmount.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label>Diskon (Rp)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  {...register("discount", { valueAsNumber: true, min: 0 })}
+                />
+                {errors.discount && (
+                  <p className="text-sm text-red-500">
+                    {errors.discount.message}
                   </p>
                 )}
               </div>

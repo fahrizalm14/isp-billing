@@ -1,6 +1,7 @@
 import { decrypt } from "@/lib/crypto";
 import { deleteUserPPPOE, movePPPOEToProfile } from "@/lib/mikrotik/pppoe";
 import { prisma } from "@/lib/prisma";
+import { calculatePaymentTotals } from "@/lib/paymentTotals";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function DELETE(
@@ -102,6 +103,7 @@ export async function GET(
       active: subscription.active,
       dueDate: subscription.dueDate,
       expiredAt: subscription.expiredAt || new Date(),
+      discount: subscription.discount || 0,
       odp: subscription.odp?.name || "",
       odpId: subscription.odp?.id || "",
       routerName: subscription.odp?.router?.name || "",
@@ -119,15 +121,26 @@ export async function GET(
       packageName: subscription.package?.name || "",
       packageId: subscription.package?.id || "",
       packageSpeed: subscription.package?.rateLimit || "",
-      payments: subscription.payments.map((p) => ({
-        id: p.id,
-        number: p.number,
-        amount: p.amount,
-        tax: p.tax,
-        status: p.status,
-        paymentMethod: p.paymentMethod,
-        createdAt: p.createdAt,
-      })),
+      payments: subscription.payments.map((p) => {
+        const totals = calculatePaymentTotals({
+          amount: p.amount,
+          discount: p.discount ?? 0,
+          taxPercent: p.tax ?? 0,
+        });
+
+        return {
+          id: p.id,
+          number: p.number,
+          amount: totals.baseAmount,
+          tax: totals.taxPercent,
+          taxValue: totals.taxValue,
+          discount: totals.discount,
+          netAmount: totals.total,
+          status: p.status,
+          paymentMethod: p.paymentMethod,
+          createdAt: p.createdAt,
+        };
+      }),
       username: subscription.usersPPPOE.length
         ? subscription.usersPPPOE[0].username
         : undefined,
@@ -162,8 +175,19 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { customerName, customerPhone, address, odpId, packageId, dueDate } =
-      body;
+    const {
+      customerName,
+      customerPhone,
+      address,
+      odpId,
+      packageId,
+      dueDate,
+      discount = 0,
+    } = body;
+    const sanitizedDiscount =
+      typeof discount === "number" && Number.isFinite(discount)
+        ? Math.max(Math.floor(discount), 0)
+        : 0;
 
     const subs = await prisma.subscription.findUnique({
       where: { id },
@@ -219,6 +243,7 @@ export async function PUT(
         package: { connect: { id: packageId } },
         updatedAt: new Date(),
         dueDate,
+        discount: sanitizedDiscount,
       },
       include: {
         package: { include: { router: true } }, // ambil router baru

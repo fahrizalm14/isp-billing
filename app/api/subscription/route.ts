@@ -29,7 +29,12 @@ export async function POST(req: Request) {
       odpId,
       packageId,
       dueDate,
+      discount = 0,
     } = body;
+    const sanitizedDiscount =
+      typeof discount === "number" && Number.isFinite(discount)
+        ? Math.max(Math.floor(discount), 0)
+        : 0;
     const newAddress = address as Address;
 
     // todo validasi payload
@@ -40,14 +45,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (
-      !newAddress.city ||
-      !newAddress.district ||
-      !newAddress.postalCode ||
-      !newAddress.street ||
-      !newAddress.province ||
-      !newAddress.subDistrict
-    )
+    if (!newAddress.street)
       return NextResponse.json(
         { error: "Alamat wajib diisi." },
         { status: 400 }
@@ -98,6 +96,7 @@ export async function POST(req: Request) {
         number,
         packageId,
         odpId,
+        discount: sanitizedDiscount,
         userProfileId: profile.id,
       },
     });
@@ -110,6 +109,7 @@ export async function POST(req: Request) {
       packageId: pkg.id,
       packageName: pkg.name,
       taxAmount: 0,
+      discountAmount: sanitizedDiscount,
       validPhoneNumber,
       subscriptionId: subs.id,
     });
@@ -158,6 +158,7 @@ export async function GET(req: NextRequest) {
         select: {
           id: true,
           expiredAt: true,
+          discount: true,
           createdAt: true,
           userProfile: {
             select: {
@@ -226,6 +227,7 @@ export async function GET(req: NextRequest) {
         routerName: s.package?.router?.name || "",
         packageName: s.package?.name || "",
         packagePrice: s.package?.price || 0,
+        discount: s.discount || 0,
         status: s.active,
         remainingDays,
         expiredAt: s.expiredAt?.toISOString() || "",

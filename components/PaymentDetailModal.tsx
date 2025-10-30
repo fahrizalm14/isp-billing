@@ -20,6 +20,10 @@ interface PaymentDetail {
   number: string;
   transactionNumber: string;
   amount: number;
+  discount: number;
+  netAmount: number;
+  taxAmount: number;
+  taxValue: number;
   status: string;
   createdAt: string;
   dueDate: string | null;
@@ -123,11 +127,33 @@ export default function PaymentDetailModal({
             </div>
 
             {/* Amount */}
-            <div className="border-b pb-3">
-              <p className="text-gray-500">Jumlah</p>
-              <p className="font-bold text-primary">
-                Rp {detail.amount.toLocaleString("id-ID")}
-              </p>
+            <div className="border-b pb-3 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Subtotal</span>
+                <span className="font-medium">
+                  Rp {detail.amount.toLocaleString("id-ID")}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Diskon</span>
+                <span className="font-medium">
+                  Rp {(detail.discount ?? 0).toLocaleString("id-ID")}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">
+                  Pajak ({detail.taxAmount}%)
+                </span>
+                <span className="font-medium">
+                  Rp {(detail.taxValue ?? 0).toLocaleString("id-ID")}
+                </span>
+              </div>
+              <div className="flex justify-between text-base font-semibold text-primary">
+                <span>Total</span>
+                <span>
+                  Rp {(detail.netAmount ?? 0).toLocaleString("id-ID")}
+                </span>
+              </div>
             </div>
 
             {/* Status */}

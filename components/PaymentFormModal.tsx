@@ -2,6 +2,7 @@
 
 import SubscriptionSelectModal from "@/components/SubscriptionSelectModal";
 import { SwalToast } from "@/components/SweetAlert";
+import { calculatePaymentTotals } from "@/lib/paymentTotals";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +22,7 @@ interface PaymentForm {
   subscriptionId: string;
   amount: number;
   taxAmount: number;
+  discount: number;
   expiredAt?: string;
 }
 
@@ -35,6 +37,7 @@ export default function PaymentFormModal({
     subscriptionId: "",
     amount: 0,
     taxAmount: 0,
+    discount: 0,
   });
 
   // UI state saja
@@ -42,6 +45,16 @@ export default function PaymentFormModal({
   const [customerName, setCustomerName] = useState("");
   const [packageName, setPackageName] = useState("");
   const [subscriptionModal, setSubscriptionModal] = useState(false);
+
+  const totals = calculatePaymentTotals({
+    amount: form.amount,
+    discount: form.discount,
+    taxPercent: form.taxAmount,
+  });
+  const taxInfo =
+    totals.taxPercent > 0
+      ? ` (Pajak ${totals.taxPercent}% = Rp ${totals.taxValue.toLocaleString("id-ID")})`
+      : "";
 
   useEffect(() => {
     if (open && paymentId) {
@@ -57,6 +70,7 @@ export default function PaymentFormModal({
       subscriptionId: "",
       amount: 0,
       taxAmount: 0,
+      discount: 0,
     });
     setSubscriptionNumber("");
     setCustomerName("");
@@ -72,9 +86,10 @@ export default function PaymentFormModal({
       const p = result.data;
 
       setForm({
-        subscriptionId: p.subscriptionId,
+        subscriptionId: p.subscriptionId || "",
         amount: p.amount,
         taxAmount: p.taxAmount,
+        discount: p.discount ?? 0,
         expiredAt: p.expiredAt ? p.expiredAt.split("T")[0] : "",
       });
 
@@ -179,12 +194,43 @@ export default function PaymentFormModal({
                   title="inputPaymentAmount"
                   type="number"
                   value={form.amount}
-                  onChange={(e) =>
-                    setForm({ ...form, amount: Number(e.target.value) })
-                  }
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    setForm({
+                      ...form,
+                      amount: Number.isNaN(value) ? 0 : Math.max(value, 0),
+                    });
+                  }}
                   className="w-full border rounded px-3 py-2"
+                  min={0}
                   required
                 />
+              </div>
+
+              {/* Discount */}
+              <div>
+                <label className="block text-sm font-medium">
+                  Diskon (Rp)
+                </label>
+                <input
+                  title="inputPaymentDiscount"
+                  type="number"
+                  value={form.discount}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    setForm({
+                      ...form,
+                      discount: Number.isNaN(value) ? 0 : Math.max(value, 0),
+                    });
+                  }}
+                  className="w-full border rounded px-3 py-2"
+                  min={0}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Total setelah diskon & pajak: Rp {" "}
+                  {totals.total.toLocaleString("id-ID")}
+                  {taxInfo}
+                </p>
               </div>
 
               {/* Tax */}
@@ -194,10 +240,15 @@ export default function PaymentFormModal({
                   title="inputPaymentTax"
                   type="number"
                   value={form.taxAmount}
-                  onChange={(e) =>
-                    setForm({ ...form, taxAmount: Number(e.target.value) })
-                  }
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    setForm({
+                      ...form,
+                      taxAmount: Number.isNaN(value) ? 0 : Math.max(value, 0),
+                    });
+                  }}
                   className="w-full border rounded px-3 py-2"
+                  min={0}
                 />
               </div>
 
@@ -234,6 +285,7 @@ export default function PaymentFormModal({
             ...form,
             subscriptionId: subs.id,
             amount: subs.packagePrice || 0,
+            discount: subs.discount ?? 0,
           });
           setSubscriptionNumber(subs.number);
           setCustomerName(subs.name || "");
