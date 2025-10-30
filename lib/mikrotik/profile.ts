@@ -46,81 +46,81 @@ const findProfileByName = async (
 /**
  * Membuat profile PPPoE baru di MikroTik
  */
-export async function createProfilePPPOE(
-  config: {
-    host: string;
-    username: string;
-    password: string;
-    port: number; // Optional port, default is 22
-  },
-  profile: {
-    name: string;
-    localAddress: string;
-    remoteAddress: string;
-    rateLimit: string;
-  }
-) {
-  const { connection, close } = await createRouterOSConnection(config);
+// export async function createProfilePPPOE(
+//   config: {
+//     host: string;
+//     username: string;
+//     password: string;
+//     port: number; // Optional port, default is 22
+//   },
+//   profile: {
+//     name: string;
+//     localAddress: string;
+//     remoteAddress: string;
+//     rateLimit: string;
+//   }
+// ) {
+//   const { connection, close } = await createRouterOSConnection(config);
 
-  const primaryParams = [
-    `=name=${toProfileKey(profile.name)}`,
-    `=local-address=${toProfileKey(profile.localAddress)}`,
-    `=remote-address=${toProfileKey(profile.remoteAddress)}`,
-    `=rate-limit=${profile.rateLimit}`,
-  ];
+//   const primaryParams = [
+//     `=name=${toProfileKey(profile.name)}`,
+//     `=local-address=${toProfileKey(profile.localAddress)}`,
+//     `=remote-address=${toProfileKey(profile.remoteAddress)}`,
+//     `=rate-limit=${profile.rateLimit}`,
+//   ];
 
-  const fallbackParams = [
-    `=name=${profile.name}`,
-    `=local-address=${profile.localAddress}`,
-    `=remote-address=${profile.remoteAddress}`,
-    `=rate-limit=${profile.rateLimit}`,
-  ];
+//   const fallbackParams = [
+//     `=name=${profile.name}`,
+//     `=local-address=${profile.localAddress}`,
+//     `=remote-address=${profile.remoteAddress}`,
+//     `=rate-limit=${profile.rateLimit}`,
+//   ];
 
-  try {
-    try {
-      await connection.write("/ppp/profile/add", primaryParams);
-    } catch {
-      await connection.write("/ppp/profile/add", fallbackParams);
-    }
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : String(error ?? "Unknown error");
-    throw new Error(`Gagal menambahkan profil PPPoE: ${message}`);
-  } finally {
-    await close();
-  }
-}
+//   try {
+//     try {
+//       await connection.write("/ppp/profile/add", primaryParams);
+//     } catch {
+//       await connection.write("/ppp/profile/add", fallbackParams);
+//     }
+//   } catch (error) {
+//     const message =
+//       error instanceof Error ? error.message : String(error ?? "Unknown error");
+//     throw new Error(`Gagal menambahkan profil PPPoE: ${message}`);
+//   } finally {
+//     await close();
+//   }
+// }
 
 /**
  * Menghapus profil PPPoE berdasarkan nama
  */
-export async function deletePppoeProfile(
-  config: { host: string; username: string; password: string; port: number },
-  profileName: string
-) {
-  const { connection, close } = await createRouterOSConnection(config);
+// export async function deletePppoeProfile(
+//   config: { host: string; username: string; password: string; port: number },
+//   profileName: string
+// ) {
+//   const { connection, close } = await createRouterOSConnection(config);
 
-  try {
-    const profile = await findProfileByName(connection, profileName);
-    if (!profile) {
-      throw new Error(`Profil "${profileName}" tidak ditemukan`);
-    }
+//   try {
+//     const profile = await findProfileByName(connection, profileName);
+//     if (!profile) {
+//       throw new Error(`Profil "${profileName}" tidak ditemukan`);
+//     }
 
-    const identifier =
-      profile[".id"] && profile[".id"].length > 0
-        ? profile[".id"]
-        : profile["name"];
+//     const identifier =
+//       profile[".id"] && profile[".id"].length > 0
+//         ? profile[".id"]
+//         : profile["name"];
 
-    await connection.write("/ppp/profile/remove", [`=numbers=${identifier}`]);
-    console.log(`Profil "${profileName}" berhasil dihapus.`);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : String(error ?? "Unknown error");
-    throw new Error(`Gagal menghapus profil: ${message}`);
-  } finally {
-    await close();
-  }
-}
+//     await connection.write("/ppp/profile/remove", [`=numbers=${identifier}`]);
+//     console.log(`Profil "${profileName}" berhasil dihapus.`);
+//   } catch (error) {
+//     const message =
+//       error instanceof Error ? error.message : String(error ?? "Unknown error");
+//     throw new Error(`Gagal menghapus profil: ${message}`);
+//   } finally {
+//     await close();
+//   }
+// }
 
 /**
  * Ambil profil PPPoE berdasarkan nama

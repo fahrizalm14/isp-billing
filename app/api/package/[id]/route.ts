@@ -1,5 +1,3 @@
-import { decrypt } from "@/lib/crypto";
-import { toProfileKey } from "@/lib/mikrotik/adapator";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -65,16 +63,16 @@ export async function DELETE(
       );
     }
 
-    const { deletePppoeProfile } = await import("@/lib/mikrotik/profile");
-    await deletePppoeProfile(
-      {
-        host: packageToDelete.router.ipAddress,
-        username: packageToDelete.router.apiUsername,
-        password: decrypt(packageToDelete.router.apiPassword),
-        port: Number(packageToDelete.router.port) || 22,
-      },
-      toProfileKey(packageToDelete.name)
-    );
+    // const { deletePppoeProfile } = await import("@/lib/mikrotik/profile");
+    // await deletePppoeProfile(
+    //   {
+    //     host: packageToDelete.router.ipAddress,
+    //     username: packageToDelete.router.apiUsername,
+    //     password: decrypt(packageToDelete.router.apiPassword),
+    //     port: Number(packageToDelete.router.port) || 22,
+    //   },
+    //   toProfileKey(packageToDelete.name)
+    // );
 
     await prisma.package.delete({
       where: { id: packageToDelete.id },

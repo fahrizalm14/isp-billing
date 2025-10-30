@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
           price: true,
           active: true,
           poolName: true,
+          profileName: true,
           localAddress: true,
           rateLimit: true,
           routerId: true,

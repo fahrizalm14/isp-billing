@@ -22,6 +22,7 @@ export interface Package {
   routerId: string;
   router: { name: string };
   poolName: string;
+  profileName: string;
   localAddress: string;
   rateLimit?: string;
   price: number;
@@ -211,12 +212,13 @@ export default function PackagesPage() {
                   <button
                     title="edit"
                     className="p-2 bg-primary text-white rounded mr-2"
-                    onClick={() => {
-                      setSelectedPackage({
-                        ...pkg,
-                        rateLimit: pkg.rateLimit || "",
-                        price: `${pkg.price}`,
-                      });
+                  onClick={() => {
+                    setSelectedPackage({
+                      ...pkg,
+                      rateLimit: pkg.rateLimit || "",
+                      price: `${pkg.price}`,
+                      profileName: pkg.profileName,
+                    });
                       setModalOpen(true);
                     }}
                   >

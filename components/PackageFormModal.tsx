@@ -18,6 +18,7 @@ const EMPTY_PACKAGE = {
   description: "",
   routerId: "",
   poolName: "",
+  profileName: "",
   localAddress: "",
   rateLimit: "",
   price: "",
@@ -28,18 +29,17 @@ const PackageSchema = z.object({
   name: z.string().min(1, "Nama paket wajib diisi"),
   description: z.string().optional(),
   routerId: z.string().min(1, "Router wajib dipilih"),
-  poolName: z.string().min(1, "Pool wajib dipilih"),
-  localAddress: z.string().min(1, "Local Address wajib diisi"),
-  rateLimit: z
-    .string()
-    .refine(
-      (val) =>
-        val.toLowerCase() === "unlimited" ||
-        /^\d+[kKmMgG]\/\d+[kKmMgG]$/i.test(val),
-      {
-        message: 'Rate Limit harus "unlimited" atau format seperti 10M/10M',
-      }
-    ),
+  poolName: z.string().min(1, "Profile belum ada pool"),
+  localAddress: z.string().min(1, "Profile tidak mempunyai local address"),
+  rateLimit: z.string().optional(),
+  // .refine(
+  //   (val) =>
+  //     val.toLowerCase() === "unlimited" ||
+  //     /^\d+[kKmMgG]\/\d+[kKmMgG]$/i.test(val),
+  //   {
+  //     message: 'Rate Limit harus "unlimited" atau format seperti 10M/10M',
+  //   }
+  // ),
   price: z.string().min(1),
   active: z.boolean().optional(),
   id: z.string().optional(),
@@ -47,6 +47,26 @@ const PackageSchema = z.object({
 });
 
 export type PackageForm = z.infer<typeof PackageSchema>;
+
+const sanitizeInitialData = (
+  data?: Partial<PackageForm> | null
+): PackageForm => ({
+  ...EMPTY_PACKAGE,
+  ...(data ?? {}),
+  name: data?.name ?? "",
+  description: data?.description ?? "",
+  routerId: data?.routerId ?? "",
+  poolName: data?.poolName ?? "",
+  profileName: data?.profileName ?? "",
+  localAddress: data?.localAddress ?? "",
+  rateLimit: data?.rateLimit ?? "",
+  price:
+    data?.price === null || data?.price === undefined
+      ? ""
+      : typeof data.price === "number"
+      ? `${data.price}`
+      : data.price,
+});
 
 // type PoolResponse = {
 //   name: string;
@@ -59,6 +79,7 @@ type ProfileResponse = {
   raw: string;
   localAddress?: string;
   remoteAddress?: string;
+  rateLimit?: string;
 };
 
 type Props = {
@@ -86,6 +107,7 @@ export default function PackageFormModal({
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<PackageForm>({
     resolver: zodResolver(PackageSchema),
@@ -94,9 +116,9 @@ export default function PackageFormModal({
 
   useEffect(() => {
     if (initialData) {
-      reset(initialData);
+      reset(sanitizeInitialData(initialData));
     } else {
-      reset();
+      reset({ ...EMPTY_PACKAGE });
     }
   }, [initialData, reset, show]);
 
@@ -110,14 +132,16 @@ export default function PackageFormModal({
   useEffect(() => {
     const selected = pools.find((p) => p.name === selectedProfile);
     if (selected) {
-      reset((prev) => ({
-        ...prev,
-        localAddress: selected.localAddress ?? "",
-        profileName: selected.name,
-        poolName: selected.remoteAddress ?? "",
-      }));
+      setValue("localAddress", selected.localAddress ?? "", {
+        shouldValidate: true,
+      });
+      setValue("poolName", selected.remoteAddress ?? "", {
+        shouldValidate: true,
+      });
+      setValue("name", selected.name, { shouldValidate: true });
+      setValue("rateLimit", selected.rateLimit ?? "", { shouldValidate: true });
     }
-  }, [pools, reset, selectedProfile]);
+  }, [pools, selectedProfile, setValue]);
 
   const fetchPools = async (routerId: string) => {
     if (!routerId) {
@@ -202,7 +226,7 @@ export default function PackageFormModal({
             </DialogHeader>
 
             <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-3">
-              <div>
+              {/* <div>
                 <label htmlFor="name" className="block text-sm font-medium mb-1">
                   Nama Paket
                 </label>
@@ -212,25 +236,10 @@ export default function PackageFormModal({
                   placeholder="Nama Paket"
                   className="w-full border px-3 py-2 rounded text-sm"
                 />
-                {errors.name && (
-                  <p className="text-sm text-red-500">{errors.name.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label
-                  htmlFor="description"
-                  className="block text-sm font-medium mb-1"
-                >
-                  Deskripsi
-                </label>
-                <textarea
-                  id="description"
-                  {...register("description")}
-                  placeholder="Deskripsi"
-                  className="w-full border px-3 py-2 rounded text-sm"
-                ></textarea>
-              </div>
+                </div> */}
+              {/* {errors.name && (
+                <p className="text-sm text-red-500">{errors.name.message}</p>
+              )} */}
 
               <div>
                 <label
@@ -243,7 +252,6 @@ export default function PackageFormModal({
                   id="routerId"
                   {...register("routerId")}
                   className="w-full border px-3 py-2 rounded text-sm"
-                  disabled={isEdit}
                 >
                   <option value="">Pilih Router</option>
                   {routers.map((r) => (
@@ -275,12 +283,13 @@ export default function PackageFormModal({
                     id="profileName"
                     {...register("profileName")}
                     className="w-full border px-3 py-2 rounded text-sm"
-                    disabled={isEdit}
+                    // disabled={isEdit}
                   >
                     <option value="">Pilih profile</option>
                     {pools.map((p) => (
                       <option key={p.name} value={p.name}>
-                        {p.name} - {p.remoteAddress} - {p.localAddress}
+                        {p.name} {p.rateLimit} - {p.remoteAddress} -{" "}
+                        {p.localAddress}
                       </option>
                     ))}
                   </select>
@@ -305,8 +314,23 @@ export default function PackageFormModal({
                   {errors.localAddress.message}
                 </p>
               )}
-
+              <input id="poolName" {...register("poolName")} type="hidden" />
               <div>
+                <label
+                  htmlFor="description"
+                  className="block text-sm font-medium mb-1"
+                >
+                  Deskripsi
+                </label>
+                <textarea
+                  id="description"
+                  {...register("description")}
+                  placeholder="Deskripsi"
+                  className="w-full border px-3 py-2 rounded text-sm"
+                ></textarea>
+              </div>
+
+              {/* <div>
                 <label
                   htmlFor="rateLimit"
                   className="block text-sm font-medium mb-1"
@@ -325,10 +349,13 @@ export default function PackageFormModal({
                     {errors.rateLimit.message}
                   </p>
                 )}
-              </div>
+              </div> */}
 
               <div>
-                <label htmlFor="price" className="block text-sm font-medium mb-1">
+                <label
+                  htmlFor="price"
+                  className="block text-sm font-medium mb-1"
+                >
                   Harga
                 </label>
                 <input
@@ -343,7 +370,7 @@ export default function PackageFormModal({
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 <input
                   id="active"
                   type="checkbox"
@@ -353,7 +380,7 @@ export default function PackageFormModal({
                 <label htmlFor="active" className="text-sm font-medium">
                   Aktif
                 </label>
-              </div>
+              </div> */}
 
               <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <button

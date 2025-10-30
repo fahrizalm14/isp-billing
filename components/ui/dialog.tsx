@@ -39,6 +39,7 @@ const DialogContent = React.forwardRef<
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
+      title=""
       className={cn(
         // Base box
         "fixed z-[100010] grid gap-4 border bg-background p-6 shadow-lg outline-none",
