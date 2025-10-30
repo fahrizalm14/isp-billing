@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
@@ -136,108 +142,108 @@ export default function RouterFormModal({
     }
   };
 
-  if (!show) return null;
-
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="bg-white dark:bg-zinc-900 w-full max-w-lg p-6 rounded-lg shadow-lg relative">
-          <h2 className="text-lg font-semibold mb-4">
-            {isEdit ? "Edit Router" : "Tambah Router"}
-          </h2>
+      <Dialog
+        open={show}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) onClose();
+        }}
+      >
+        <DialogContent className="w-full max-w-xl p-0 sm:p-0 overflow-hidden">
+          <div className="p-5 sm:p-6">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-semibold">
+                {isEdit ? "Edit Router" : "Tambah Router"}
+              </DialogTitle>
+            </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-            <div>
-              <input
-                {...register("name")}
-                placeholder="Nama"
-                className="w-full border px-3 py-2 rounded text-sm"
-              />
-              {errors.name && (
-                <p className="text-sm text-red-500">{errors.name.message}</p>
-              )}
-            </div>
-            <div>
-              <input
-                {...register("ipAddress")}
-                placeholder="IP Address"
-                className="w-full border px-3 py-2 rounded text-sm"
-              />
-              {errors.ipAddress && (
-                <p className="text-sm text-red-500">
-                  {errors.ipAddress.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <input
-                {...register("apiUsername")}
-                placeholder="Username API"
-                className="w-full border px-3 py-2 rounded text-sm"
-              />
-              {errors.apiUsername && (
-                <p className="text-sm text-red-500">
-                  {errors.apiUsername.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <input
-                {...register("apiPassword")}
-                placeholder="Password API (kosongkan jika tidak diubah)"
-                type="password"
-                className="w-full border px-3 py-2 rounded text-sm"
-              />
-              {errors.apiPassword && (
-                <p className="text-sm text-red-500">
-                  {errors.apiPassword.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <input
-                {...register("description")}
-                placeholder="Deskripsi"
-                className="w-full border px-3 py-2 rounded text-sm"
-              />
-            </div>
-            <div>
-              <input
-                {...register("port")}
-                type="number"
-                placeholder="Port"
-                className="w-full border px-3 py-2 rounded text-sm"
-              />
-              {errors.port && (
-                <p className="text-sm text-red-500">{errors.port.message}</p>
-              )}
-            </div>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border rounded text-sm"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-primary text-white rounded text-sm hover:bg-primary/90"
-                disabled={loading}
-              >
-                {loading ? "Menyimpan..." : isEdit ? "Update" : "Simpan"}
-              </button>
-            </div>
-          </form>
-
-          <button
-            onClick={onClose}
-            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-3">
+              <div>
+                <input
+                  {...register("name")}
+                  placeholder="Nama"
+                  className="w-full border px-3 py-2 rounded text-sm"
+                />
+                {errors.name && (
+                  <p className="text-sm text-red-500">{errors.name.message}</p>
+                )}
+              </div>
+              <div>
+                <input
+                  {...register("ipAddress")}
+                  placeholder="IP Address"
+                  className="w-full border px-3 py-2 rounded text-sm"
+                />
+                {errors.ipAddress && (
+                  <p className="text-sm text-red-500">
+                    {errors.ipAddress.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <input
+                  {...register("apiUsername")}
+                  placeholder="Username API"
+                  className="w-full border px-3 py-2 rounded text-sm"
+                />
+                {errors.apiUsername && (
+                  <p className="text-sm text-red-500">
+                    {errors.apiUsername.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <input
+                  {...register("apiPassword")}
+                  placeholder="Password API (kosongkan jika tidak diubah)"
+                  type="password"
+                  className="w-full border px-3 py-2 rounded text-sm"
+                />
+                {errors.apiPassword && (
+                  <p className="text-sm text-red-500">
+                    {errors.apiPassword.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <input
+                  {...register("description")}
+                  placeholder="Deskripsi"
+                  className="w-full border px-3 py-2 rounded text-sm"
+                />
+              </div>
+              <div>
+                <input
+                  {...register("port")}
+                  type="number"
+                  placeholder="Port"
+                  className="w-full border px-3 py-2 rounded text-sm"
+                />
+                {errors.port && (
+                  <p className="text-sm text-red-500">{errors.port.message}</p>
+                )}
+              </div>
+              <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 border rounded text-sm"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-primary text-white rounded text-sm hover:bg-primary/90 disabled:opacity-60"
+                  disabled={loading}
+                >
+                  {loading ? "Menyimpan..." : isEdit ? "Update" : "Simpan"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Loader loading={loading} />
     </>
   );

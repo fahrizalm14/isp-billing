@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useEffect, useState } from "react";
 import { SwalToast } from "./SweetAlert";
 
@@ -67,14 +74,19 @@ export default function UserFormModal({
     onSubmit(form);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded shadow-md w-full max-w-md">
-        <h2 className="text-lg font-semibold mb-4">
-          {mode === "create" ? "Tambah User Baru" : "Edit User"}
-        </h2>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="w-full max-w-lg space-y-4">
+        <DialogHeader>
+          <DialogTitle>
+            {mode === "create" ? "Tambah User Baru" : "Edit User"}
+          </DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             name="name"
@@ -93,7 +105,7 @@ export default function UserFormModal({
             className="w-full border px-3 py-2 rounded"
             required
           />
-          {mode === "create" || (mode === "edit" && form.id) ? (
+          {(mode === "create" || (mode === "edit" && form.id)) && (
             <input
               name="password"
               type="password"
@@ -105,12 +117,12 @@ export default function UserFormModal({
               className="w-full border px-3 py-2 rounded"
               required={mode === "create"}
             />
-          ) : null}
+          )}
           <select
             name="role"
             value={form.role}
             onChange={handleChange}
-            className="w-full border rounded px-3 py-2 bg-secondary text-secondary-foreground rounded"
+            className="w-full border rounded px-3 py-2 bg-secondary text-secondary-foreground"
           >
             <option value="CUSTOMER">Konsumen</option>
             <option value="ADMIN">Admin</option>
@@ -119,16 +131,23 @@ export default function UserFormModal({
             name="status"
             value={form.status.toUpperCase()}
             onChange={handleChange}
-            className="w-full border rounded px-3 py-2 bg-secondary text-secondary-foreground rounded"
+            className="w-full border rounded px-3 py-2 bg-secondary text-secondary-foreground"
           >
             <option value="ACTIVE">Aktif</option>
             <option value="PENDING">Pending</option>
             <option value="SUSPEND">Suspend</option>
           </select>
-          <div className="flex justify-end gap-2">
+          <DialogFooter className="flex flex-row justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-secondary text-white hover:bg-secondary/90 rounded"
+            >
+              Batal
+            </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-primary text-white hover:bg-primary/90 rounded"
+              className="px-4 py-2 bg-primary text-white hover:bg-primary/90 rounded disabled:opacity-60"
               disabled={loading}
             >
               {loading
@@ -137,16 +156,9 @@ export default function UserFormModal({
                 ? "Simpan"
                 : "Update"}
             </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-secondary text-white hover:bg-secondary/90 rounded"
-            >
-              Batal
-            </button>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

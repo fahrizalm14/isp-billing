@@ -215,13 +215,11 @@ const FormMessages: React.FC<FormMessageProps> = ({ templates }) => {
                   <FormItem>
                     <FormLabel>Message Content</FormLabel>
                     <FormControl>
-                      <div className="border rounded">
-                        <RichTextEditor
-                          value={field.value}
-                          onChange={field.onChange}
-                          minHeight={180}
-                        />
-                      </div>
+                      <RichTextEditor
+                        value={field.value}
+                        onChange={field.onChange}
+                        minHeight={180}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

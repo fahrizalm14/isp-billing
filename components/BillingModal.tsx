@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -128,22 +134,22 @@ export function BillingModal({
     window.open(`/invoice/${id}`, "_blank");
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-
-      {/* Content */}
-      <div className="relative z-10 w-full max-w-md bg-white dark:bg-neutral-900 rounded-xl shadow-xl p-6 animate-in fade-in-0 zoom-in-95">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b pb-3 mb-4">
-          <h2 className="text-lg font-bold">Detail Pembayaran</h2>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+    >
+      <DialogContent className="w-full max-w-xl space-y-5 p-4 sm:p-6 text-sm">
+        <DialogHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <DialogTitle className="text-lg font-bold">
+            Detail Pembayaran
+          </DialogTitle>
           <Button
             size="sm"
             variant="outline"
-            className="hover:bg-secondary/90"
+            className="self-start hover:bg-secondary/90 sm:self-auto"
             onClick={getPaymentById}
             disabled={loading}
           >
@@ -156,64 +162,58 @@ export function BillingModal({
               "Refresh"
             )}
           </Button>
-        </div>
+        </DialogHeader>
 
-        {/* Body */}
-        <div className="space-y-4 text-sm">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-gray-500 text-xs">Transaction #</p>
-              <p className="font-medium">{payment?.transactionNumber || "-"}</p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-xs">Jumlah</p>
-              <p className="font-semibold text-primary">
-                Rp {payment?.amount.toLocaleString("id-ID")}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-500 text-xs">Status</p>
-              <span
-                className={`inline-block px-2 py-0.5 mt-1 rounded-full text-xs font-medium ${
-                  payment?.status === "SUCCESS"
-                    ? "bg-green-100 text-green-700"
-                    : payment?.status === "CANCELLED"
-                    ? "bg-red-100 text-red-700"
-                    : "bg-yellow-100 text-yellow-700"
-                }`}
-              >
-                {payment?.status}
-              </span>
-            </div>
-            <div>
-              <p className="text-gray-500 text-xs">Tgl Dibuat</p>
-              <p className="font-medium">
-                {payment?.createdAt
-                  ? new Date(payment.createdAt).toLocaleString("id-ID", {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })
-                  : "-"}
-              </p>
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <p className="text-gray-500 text-xs">Transaction #</p>
+            <p className="font-medium">{payment?.transactionNumber || "-"}</p>
           </div>
-
-          {/* Actions */}
-          <div className="flex justify-between gap-2 pt-4 border-t">
-            <Button
-              variant="outline"
-              className="hover:bg-secondary/90"
-              onClick={handleOpenInvoice}
+          <div>
+            <p className="text-gray-500 text-xs">Jumlah</p>
+            <p className="font-semibold text-primary">
+              Rp {payment?.amount.toLocaleString("id-ID")}
+            </p>
+          </div>
+          <div>
+            <p className="text-gray-500 text-xs">Status</p>
+            <span
+              className={`inline-block px-2 py-0.5 mt-1 rounded-full text-xs font-medium ${
+                payment?.status === "SUCCESS"
+                  ? "bg-green-100 text-green-700"
+                  : payment?.status === "CANCELLED"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-yellow-100 text-yellow-700"
+              }`}
             >
-              Lihat Invoice
-            </Button>
-            {/* WA share optional */}
+              {payment?.status}
+            </span>
+          </div>
+          <div>
+            <p className="text-gray-500 text-xs">Tgl Dibuat</p>
+            <p className="font-medium">
+              {payment?.createdAt
+                ? new Date(payment.createdAt).toLocaleString("id-ID", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })
+                : "-"}
+            </p>
           </div>
         </div>
 
-        {/* Payment Tabs */}
+        <div className="flex flex-col gap-2 pt-4 border-t border-dashed sm:flex-row sm:items-center sm:justify-between">
+          <Button
+            variant="outline"
+            className="hover:bg-secondary/90"
+            onClick={handleOpenInvoice}
+          >
+            Lihat Invoice
+          </Button>
+        </div>
+
         {payment?.status !== "SUCCESS" && (
-          <div className="mt-6">
+          <div className="space-y-4">
             <div className="flex border-b text-sm font-medium">
               <button
                 onClick={() => setMethod("manual")}
@@ -237,9 +237,8 @@ export function BillingModal({
               </button>
             </div>
 
-            {/* Manual Payment */}
             {method === "manual" && (
-              <div className="mt-4 space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="reference">No. Referensi / Transfer</Label>
                 <Input
                   id="reference"
@@ -250,9 +249,8 @@ export function BillingModal({
               </div>
             )}
 
-            {/* Gateway Payment */}
             {method === "gateway" && (
-              <div className="mt-4 text-gray-600 text-sm">
+              <div className="text-gray-600 text-sm">
                 Anda akan diarahkan ke halaman pembayaran pihak ketiga untuk
                 menyelesaikan transaksi ini.
               </div>
@@ -260,8 +258,7 @@ export function BillingModal({
           </div>
         )}
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 mt-6 border-t pt-4">
+        <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
           <Button
             variant="outline"
             className="hover:bg-secondary/90"
@@ -288,7 +285,8 @@ export function BillingModal({
               </Button>
             ))}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
+

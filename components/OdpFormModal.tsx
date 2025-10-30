@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -60,15 +66,6 @@ export default function OdpFormModal({
     },
   });
 
-  // Optional: kunci scroll body saat modal terbuka
-  // useEffect(() => {
-  //   if (show) {
-  //     const prev = document.body.style.overflow;
-  //     document.body.style.overflow = "hidden";
-  //     return () => { document.body.style.overflow = prev; };
-  //   }
-  // }, [show]);
-
   useEffect(() => {
     if (!show) return;
     const run = async () => {
@@ -128,43 +125,23 @@ export default function OdpFormModal({
     }
   };
 
-  if (!show) return null;
-
   return (
     <>
-      {/* Backdrop (klik untuk tutup) */}
-      <div
-        className="fixed inset-0 z-[9999] bg-black/50"
-        aria-hidden="true"
-        onClick={onClose}
-      />
-      {/* Viewport container: IZINKAN SCROLL */}
-      <div
-        className="fixed inset-0 z-[10000] overflow-y-auto p-4 sm:p-6 flex items-center justify-center"
-        role="dialog"
-        aria-modal="true"
-        aria-label={isEdit ? "Edit ODP" : "Tambah ODP"}
+      <Dialog
+        open={show}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) onClose();
+        }}
       >
-        {/* Modal card: batasi tinggi + scroll internal */}
-        <div
-          className="relative w-full max-w-lg bg-white dark:bg-zinc-900 rounded-lg shadow-lg outline-none max-h-[85vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()} // cegah klik dalam card menutup modal
-        >
-          <button
-            onClick={onClose}
-            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 p-2"
-            aria-label="Tutup"
-            type="button"
-          >
-            ✕
-          </button>
-
+        <DialogContent className="w-full max-w-xl p-0 sm:p-0 overflow-hidden">
           <div className="p-5 sm:p-6">
-            <h2 className="text-lg font-semibold mb-4">
-              {isEdit ? "Edit ODP" : "Tambah ODP"}
-            </h2>
+            <DialogHeader>
+              <DialogTitle className="text-lg font-semibold">
+                {isEdit ? "Edit ODP" : "Tambah ODP"}
+              </DialogTitle>
+            </DialogHeader>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium">
                   Nama ODP
@@ -197,7 +174,6 @@ export default function OdpFormModal({
                 )}
               </div>
 
-              {/* Longitude / Latitude side-by-side di ≥sm */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label
@@ -319,10 +295,11 @@ export default function OdpFormModal({
               </div>
             </form>
           </div>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
       <Loader loading={loading} />
     </>
   );
 }
+

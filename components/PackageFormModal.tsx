@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -179,117 +185,118 @@ export default function PackageFormModal({
     }
   };
 
-  if (!show) return null;
-
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="bg-white dark:bg-zinc-900 w-full max-w-lg p-6 rounded-lg shadow-lg relative">
-          <h2 className="text-lg font-semibold mb-4">
-            {isEdit ? "Edit Paket" : "Tambah Paket"}
-          </h2>
+      <Dialog
+        open={show}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) onClose();
+        }}
+      >
+        <DialogContent className="w-full max-w-xl p-0 sm:p-0 overflow-hidden">
+          <div className="p-5 sm:p-6">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-semibold">
+                {isEdit ? "Edit Paket" : "Tambah Paket"}
+              </DialogTitle>
+            </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium mb-1">
-                Nama Paket
-              </label>
-              <input
-                id="name"
-                {...register("name")}
-                placeholder="Nama Paket"
-                className="w-full border px-3 py-2 rounded text-sm"
-              />
-              {errors.name && (
-                <p className="text-sm text-red-500">{errors.name.message}</p>
-              )}
-            </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-3">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium mb-1">
+                  Nama Paket
+                </label>
+                <input
+                  id="name"
+                  {...register("name")}
+                  placeholder="Nama Paket"
+                  className="w-full border px-3 py-2 rounded text-sm"
+                />
+                {errors.name && (
+                  <p className="text-sm text-red-500">{errors.name.message}</p>
+                )}
+              </div>
 
-            <div>
-              <label
-                htmlFor="description"
-                className="block text-sm font-medium mb-1"
-              >
-                Deskripsi
-              </label>
-              <textarea
-                id="description"
-                {...register("description")}
-                placeholder="Deskripsi"
-                className="w-full border px-3 py-2 rounded text-sm"
-              ></textarea>
-            </div>
-
-            <div>
-              <label
-                htmlFor="routerId"
-                className="block text-sm font-medium mb-1"
-              >
-                Router
-              </label>
-              <select
-                id="routerId"
-                {...register("routerId")}
-                className="w-full border px-3 py-2 rounded text-sm"
-                disabled={isEdit}
-              >
-                <option value="">Pilih Router</option>
-                {routers.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-              {errors.routerId && (
-                <p className="text-sm text-red-500">
-                  {errors.routerId.message}
-                </p>
-              )}
-            </div>
-
-            {poolLoading ? (
-              "Memuat profile dari mikrotik..."
-            ) : (
               <div>
                 <label
-                  htmlFor="poolName"
+                  htmlFor="description"
                   className="block text-sm font-medium mb-1"
                 >
-                  Profile
+                  Deskripsi
+                </label>
+                <textarea
+                  id="description"
+                  {...register("description")}
+                  placeholder="Deskripsi"
+                  className="w-full border px-3 py-2 rounded text-sm"
+                ></textarea>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="routerId"
+                  className="block text-sm font-medium mb-1"
+                >
+                  Router
                 </label>
                 <select
-                  id="profileName"
-                  {...register("profileName")}
+                  id="routerId"
+                  {...register("routerId")}
                   className="w-full border px-3 py-2 rounded text-sm"
                   disabled={isEdit}
                 >
-                  <option value="">Pilih profile</option>
-                  {pools.map((p) => (
-                    <option key={p.name} value={p.name}>
-                      {p.name} - {p.remoteAddress} - {p.localAddress}
+                  <option value="">Pilih Router</option>
+                  {routers.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
                     </option>
                   ))}
                 </select>
-                {errors.poolName && (
+                {errors.routerId && (
                   <p className="text-sm text-red-500">
-                    {errors.poolName.message}
+                    {errors.routerId.message}
                   </p>
                 )}
               </div>
-            )}
 
-            <div>
-              {/* <label
-                htmlFor="localAddress"
-                className="block text-sm font-medium mb-1"
-              >
-                Local Address
-              </label> */}
+              {poolLoading ? (
+                <p className="text-sm text-gray-500">
+                  Memuat profile dari mikrotik...
+                </p>
+              ) : (
+                <div>
+                  <label
+                    htmlFor="poolName"
+                    className="block text-sm font-medium mb-1"
+                  >
+                    Profile
+                  </label>
+                  <select
+                    id="profileName"
+                    {...register("profileName")}
+                    className="w-full border px-3 py-2 rounded text-sm"
+                    disabled={isEdit}
+                  >
+                    <option value="">Pilih profile</option>
+                    {pools.map((p) => (
+                      <option key={p.name} value={p.name}>
+                        {p.name} - {p.remoteAddress} - {p.localAddress}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.poolName && (
+                    <p className="text-sm text-red-500">
+                      {errors.poolName.message}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <input
                 id="localAddress"
                 {...register("localAddress")}
                 placeholder="Local Address"
-                className="w-full border px-3 py-2 rounded text-sm"
+                className="hidden"
                 disabled
                 type="hidden"
               />
@@ -298,83 +305,76 @@ export default function PackageFormModal({
                   {errors.localAddress.message}
                 </p>
               )}
-            </div>
 
-            <div>
-              <label
-                htmlFor="rateLimit"
-                className="block text-sm font-medium mb-1"
-              >
-                Rate Limit
-              </label>
-              <input
-                id="rateLimit"
-                {...register("rateLimit")}
-                placeholder="Rate Limit"
-                className="w-full border px-3 py-2 rounded text-sm"
-                disabled={isEdit}
-              />
-              {errors.rateLimit && (
-                <p className="text-sm text-red-500">
-                  {errors.rateLimit.message}
-                </p>
-              )}
-            </div>
+              <div>
+                <label
+                  htmlFor="rateLimit"
+                  className="block text-sm font-medium mb-1"
+                >
+                  Rate Limit
+                </label>
+                <input
+                  id="rateLimit"
+                  {...register("rateLimit")}
+                  placeholder="Rate Limit"
+                  className="w-full border px-3 py-2 rounded text-sm"
+                  disabled={isEdit}
+                />
+                {errors.rateLimit && (
+                  <p className="text-sm text-red-500">
+                    {errors.rateLimit.message}
+                  </p>
+                )}
+              </div>
 
-            <div>
-              <label htmlFor="price" className="block text-sm font-medium mb-1">
-                Harga
-              </label>
-              <input
-                id="price"
-                {...register("price")}
-                type="number"
-                placeholder="Harga"
-                className="w-full border px-3 py-2 rounded text-sm"
-              />
-              {errors.price && (
-                <p className="text-sm text-red-500">{errors.price.message}</p>
-              )}
-            </div>
+              <div>
+                <label htmlFor="price" className="block text-sm font-medium mb-1">
+                  Harga
+                </label>
+                <input
+                  id="price"
+                  {...register("price")}
+                  type="number"
+                  placeholder="Harga"
+                  className="w-full border px-3 py-2 rounded text-sm"
+                />
+                {errors.price && (
+                  <p className="text-sm text-red-500">{errors.price.message}</p>
+                )}
+              </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                id="active"
-                type="checkbox"
-                {...register("active")}
-                className="border rounded"
-              />
-              <label htmlFor="active" className="text-sm font-medium">
-                Aktif
-              </label>
-            </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="active"
+                  type="checkbox"
+                  {...register("active")}
+                  className="border rounded"
+                />
+                <label htmlFor="active" className="text-sm font-medium">
+                  Aktif
+                </label>
+              </div>
 
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border rounded text-sm"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-primary text-white rounded text-sm hover:bg-primary/90"
-                disabled={loading}
-              >
-                {loading ? "Menyimpan..." : isEdit ? "Update" : "Simpan"}
-              </button>
-            </div>
-          </form>
-
-          <button
-            onClick={onClose}
-            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
+              <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 border rounded text-sm"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-primary text-white rounded text-sm hover:bg-primary/90 disabled:opacity-60"
+                  disabled={loading}
+                >
+                  {loading ? "Menyimpan..." : isEdit ? "Update" : "Simpan"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Loader loading={loading} />
     </>
   );

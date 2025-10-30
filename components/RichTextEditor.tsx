@@ -1,8 +1,7 @@
 "use client";
 
-import { EditorContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import { useEffect } from "react";
+import { cn } from "@/lib/utils";
+import React from "react";
 
 interface Props {
   value: string;
@@ -11,73 +10,24 @@ interface Props {
   minHeight?: number; // px
 }
 
+/**
+ * Simplified editor that now relies on the native textarea element.
+ */
 export default function RichTextEditor({
   value,
   onChange,
   className,
-  minHeight = 160, // awal ketik tidak 1 baris
+  minHeight = 160,
 }: Props) {
-  const editor = useEditor({
-    extensions: [StarterKit],
-    content: value || "",
-    onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
-    },
-    immediatelyRender: false, // fix SSR hydration
-  });
-
-  useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value || "", {});
-    }
-  }, [value, editor]);
-
-  if (!editor) return null;
-
   return (
-    <div className={`border rounded-md p-2 ${className ?? ""}`}>
-      {/* Toolbar minimal ala WhatsApp: Bold, Italic, List */}
-      <div className="flex gap-2 mb-2">
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className={`px-2 rounded text-sm ${
-            editor.isActive("bold")
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted"
-          }`}
-        >
-          B
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={`px-2 rounded text-sm ${
-            editor.isActive("italic")
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted"
-          }`}
-        >
-          I
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={`px-2 rounded text-sm ${
-            editor.isActive("bulletList")
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted"
-          }`}
-        >
-          • List
-        </button>
-      </div>
-
-      <EditorContent
-        editor={editor}
-        className="outline-none px-2"
-        style={{ minHeight }}
-      />
-    </div>
+    <textarea
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className={cn(
+        "w-full resize-y rounded-md border px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+        className
+      )}
+      style={{ minHeight }}
+    />
   );
 }

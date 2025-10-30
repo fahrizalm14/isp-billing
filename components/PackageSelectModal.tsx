@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Package } from "@/app/(admin)/packages/page";
 import { useEffect, useState } from "react";
 
@@ -46,111 +52,114 @@ export default function PackageSelectModal({
     return () => controller.abort();
   }, [search, page, isOpen]);
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
     >
-      <div
-        className="bg-white dark:bg-zinc-900 w-full max-w-lg md:max-w-3xl mx-auto p-4 md:p-6 rounded-lg shadow-lg relative max-h-[90vh] flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-base md:text-lg font-semibold">Pilih Paket</h2>
-          <button onClick={onClose} className="text-sm text-gray-500">
-            X
-          </button>
-        </div>
+      <DialogContent className="w-full max-w-3xl space-y-4 p-4 sm:p-6">
+        <DialogHeader>
+          <DialogTitle className="text-base md:text-lg">
+            Pilih Paket
+          </DialogTitle>
+        </DialogHeader>
 
         <input
           type="text"
           placeholder="Cari nama user..."
-          className="w-full border px-3 py-2 rounded text-xs md:text-sm mb-4"
+          className="w-full border px-3 py-2 rounded text-xs md:text-sm"
           value={search}
           onChange={(e) => {
-            setPage(1); // Reset to first page on new search
+            setPage(1); // Reset ke halaman pertama ketika searching baru
             setSearch(e.target.value);
           }}
         />
 
-        <div className="flex-1 overflow-x-auto overflow-y-auto">
-          <table className="w-full border text-xs md:text-sm">
-            <thead>
-              <tr className="bg-primary text-left">
-                <th className="px-2 py-1 border">Nama</th>
-                <th className="px-2 py-1 border hidden sm:table-cell">
-                  Router/Profile
-                </th>
-                <th className="px-2 py-1 border hidden sm:table-cell">Harga</th>
-                <th className="px-2 py-1 border text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+        <div className="overflow-hidden rounded-md border">
+          <div className="max-h-[55vh] overflow-auto">
+            <table className="w-full border-collapse text-xs md:text-sm">
+              <thead className="sticky top-0 bg-primary text-left text-white">
                 <tr>
-                  <td colSpan={4} className="text-center py-4">
-                    Loading...
-                  </td>
+                  <th className="px-3 py-2">Nama</th>
+                  <th className="px-3 py-2 hidden sm:table-cell">
+                    Router/Profile
+                  </th>
+                  <th className="px-3 py-2 hidden sm:table-cell">Harga</th>
+                  <th className="px-3 py-2 text-center">Aksi</th>
                 </tr>
-              ) : packages.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="text-center py-4">
-                    Paket tidak ditemukan
-                  </td>
-                </tr>
-              ) : (
-                packages.map((_package) => (
-                  <tr key={_package.id}>
-                    <td className="px-2 py-1 border">{_package.name}</td>
-                    <td className="px-2 py-1 border hidden sm:table-cell">{`${_package.router.name}/${_package.poolName}`}</td>
-                    <td className="px-2 py-1 border hidden sm:table-cell">
-                      {_package.price}
-                    </td>
-                    <td className="px-2 py-1 border text-center">
-                      <button
-                        onClick={() => {
-                          onSelect({
-                            id: _package.id || "",
-                            name: _package.name,
-                          });
-                          onClose();
-                        }}
-                        className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
-                      >
-                        Pilih
-                      </button>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="text-center py-4">
+                      Loading...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : packages.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="text-center py-4">
+                      Paket tidak ditemukan
+                    </td>
+                  </tr>
+                ) : (
+                  packages.map((_package) => (
+                    <tr
+                      key={_package.id}
+                      className="border-t hover:bg-gray-50 dark:hover:bg-zinc-800"
+                    >
+                      <td className="px-3 py-2">{_package.name}</td>
+                      <td className="px-3 py-2 hidden sm:table-cell">
+                        {_package.router.name}/{_package.poolName}
+                      </td>
+                      <td className="px-3 py-2 hidden sm:table-cell">
+                        {_package.price}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <button
+                          onClick={() => {
+                            onSelect({
+                              id: _package.id || "",
+                              name: _package.name,
+                            });
+                            onClose();
+                          }}
+                          className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                        >
+                          Pilih
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div className="flex justify-between items-center mt-4 text-xs md:text-sm">
-          <button
-            onClick={() => setPage((p) => Math.max(p - 1, 1))}
-            disabled={page === 1}
-            className="px-2 py-1 border rounded disabled:opacity-50"
-          >
-            Prev
-          </button>
-          <span>
-            Halaman {page} dari {totalPages}
-          </span>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs md:text-sm">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            <button
+              onClick={() => setPage((p) => Math.max(p - 1, 1))}
+              disabled={page === 1}
+              className="px-3 py-1 border rounded disabled:opacity-50"
+            >
+              Prev
+            </button>
+            <span>
+              Halaman {page} dari {totalPages}
+            </span>
+          </div>
           <button
             onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
             disabled={page === totalPages}
-            className="px-2 py-1 border rounded disabled:opacity-50"
+            className="px-3 py-1 border rounded disabled:opacity-50"
           >
             Next
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

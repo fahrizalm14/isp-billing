@@ -196,13 +196,11 @@ const TemplateMessages: React.FC<TemplateMessageProps> = ({
                 <FormItem>
                   <FormLabel>Isi Template</FormLabel>
                   <FormControl>
-                    <div className="border rounded">
-                      <RichTextEditor
-                        value={field.value}
-                        onChange={field.onChange}
-                        minHeight={150}
-                      />
-                    </div>
+                    <RichTextEditor
+                      value={field.value}
+                      onChange={field.onChange}
+                      minHeight={150}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
