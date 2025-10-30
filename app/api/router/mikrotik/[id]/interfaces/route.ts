@@ -3,6 +3,9 @@ import { decrypt } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
+const toStringValue = (value: unknown) =>
+  value === null || value === undefined ? "" : String(value);
+
 export async function GET(req: NextRequest) {
   try {
     const pathParts = req.nextUrl.pathname.split("/");
@@ -24,14 +27,13 @@ export async function GET(req: NextRequest) {
       port: Number(router.port),
     });
 
-    const output = result.result.stdout;
-    const nameRegex = /name="([^"]+)"/g;
-
-    const interfaces = new Set<string>();
-    let match;
-    while ((match = nameRegex.exec(output)) !== null) {
-      interfaces.add(match[1]); // Set otomatis menghapus duplikat
-    }
+    const interfaceNames = result.result.data
+      .map(
+        (row) =>
+          toStringValue(row["name"]) || toStringValue(row["default-name"])
+      )
+      .filter(Boolean);
+    const interfaces = Array.from(new Set(interfaceNames));
 
     return NextResponse.json({
       success: true,

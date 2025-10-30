@@ -3,6 +3,9 @@ import { decrypt } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
+const toStringValue = (value: unknown) =>
+  value === null || value === undefined ? "" : String(value);
+
 function getLocalAddressFromPoolRange(poolRange: string): string | null {
   // Misal poolRange = "192.168.10.2-192.168.10.254"
   const ipStart = poolRange.split("-")[0];
@@ -11,16 +14,14 @@ function getLocalAddressFromPoolRange(poolRange: string): string | null {
   return `${parts[0]}.${parts[1]}.${parts[2]}.1`; // Jadi .1
 }
 
-function parseAssignedIps(output: string): string[] {
-  // Parsing dari /ip address print tanpa paging
-  // Cari semua IP tanpa subnet mask, misal: 192.168.10.1/24 -> 192.168.10.1
-  const ipRegex = /address=([\d\.]+)\/\d+/g;
-  const ips: string[] = [];
-  let match;
-  while ((match = ipRegex.exec(output)) !== null) {
-    ips.push(match[1]);
-  }
-  return ips;
+function parseAssignedIps(
+  rows: Array<Record<string, unknown>>
+): string[] {
+  return rows
+    .map((row) => toStringValue(row["address"]))
+    .filter((address) => address.includes("/"))
+    .map((address) => address.split("/")[0])
+    .filter(Boolean);
 }
 
 export async function GET(req: NextRequest) {
@@ -59,30 +60,21 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const pools: {
-      name: string;
-      ranges: string;
-      localAddress: string | null;
-    }[] = [];
-    const assignedIps = parseAssignedIps(ipResult.stdout);
+    const assignedIps = parseAssignedIps(ipResult.data);
 
-    const poolRegex = /name="([^"]+)"\s+ranges=([^\s]+)/g;
-    let match;
-    while ((match = poolRegex.exec(poolResult.stdout)) !== null) {
-      const name = match[1];
-      const ranges = match[2];
+    const pools = poolResult.data.map((row) => {
+      const name = toStringValue(row["name"]);
+      const ranges = toStringValue(row["ranges"]);
       const localAddress = getLocalAddressFromPoolRange(ranges);
-
-      // Validasi localAddress ada di assigned IP router
       const isValidLocalAddress =
         localAddress && assignedIps.includes(localAddress);
 
-      pools.push({
+      return {
         name,
         ranges,
         localAddress: isValidLocalAddress ? localAddress : null,
-      });
-    }
+      };
+    });
 
     return NextResponse.json({
       success: true,

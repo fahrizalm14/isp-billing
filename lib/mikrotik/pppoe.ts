@@ -1,7 +1,36 @@
 export const runtime = "nodejs";
 
 import { toProfileKey } from "./adapator";
-const { NodeSSH } = await import("node-ssh");
+import {
+  RouterOSConnection,
+  createRouterOSConnection,
+  executeCommand,
+} from "./client";
+
+const toStringValue = (value: unknown) =>
+  value === null || value === undefined ? "" : String(value);
+
+const findSecretByName = async (
+  connection: RouterOSConnection,
+  username: string
+) => {
+  const queries = [username];
+  const profileKey = toProfileKey(username);
+  if (profileKey !== username) {
+    queries.push(profileKey);
+  }
+
+  for (const query of queries) {
+    const result = await executeCommand(connection, "/ppp/secret/print", [
+      `?name=${query}`,
+    ]);
+    if (result.code === 0 && result.data.length) {
+      return result.data[0];
+    }
+  }
+
+  return undefined;
+};
 
 /**
  * Membuat user PPPoE baru di MikroTik
@@ -20,39 +49,27 @@ export async function createUserPPPOE(
     localAddress?: string;
   }
 ) {
-  const ssh = new NodeSSH();
+  const { connection, close } = await createRouterOSConnection(config);
+
   try {
-    const command1 = `/ppp secret add name=${user.name} password=${
-      user.password
-    } service=${"pppoe"} profile=${user.profile}${
-      user.localAddress ? ` local-address=${user.localAddress}` : ""
-    }`;
+    const params = [
+      `=name=${user.name}`,
+      `=password=${user.password}`,
+      `=service=pppoe`,
+      `=profile=${user.profile}`,
+    ];
 
-    await ssh.connect({
-      host: config.host,
-      username: config.username,
-      password: config.password,
-      port: config.port,
-      tryKeyboard: true,
-    });
-
-    let result = await ssh.execCommand(command1);
-
-    // fallback: coba dengan nilai di-quote (RouterOS versi/format berbeda)
-    if (result.stderr) {
-      const command2 = `/ppp secret add name="${user.name}" password="${
-        user.password
-      }" service=pppoe profile="${user.profile}"${
-        user.localAddress ? ` local-address="${user.localAddress}"` : ""
-      }`;
-      result = await ssh.execCommand(command2);
+    if (user.localAddress) {
+      params.push(`=local-address=${user.localAddress}`);
     }
 
-    if (result.stderr) {
-      throw new Error(`Gagal membuat user PPPoE: ${result.stderr}`);
-    }
+    await connection.write("/ppp/secret/add", params);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error ?? "Unknown error");
+    throw new Error(`Gagal membuat user PPPoE: ${message}`);
   } finally {
-    ssh.dispose();
+    await close();
   }
 }
 
@@ -68,46 +85,26 @@ export async function deleteUserPPPOE(
   },
   username: string
 ) {
-  const ssh = new NodeSSH();
+  const { connection, close } = await createRouterOSConnection(config);
+
   try {
-    const command1 = `/ppp secret remove [find name=${toProfileKey(username)}]`;
-
-    await ssh.connect({
-      host: config.host,
-      username: config.username,
-      password: config.password,
-      port: config.port,
-      tryKeyboard: true,
-    });
-
-    let result = await ssh.execCommand(command1);
-
-    // fallback: coba dengan name asli / di-quote
-    if (result.stderr) {
-      const command2 = `/ppp secret remove [find name="${username}"]`;
-      result = await ssh.execCommand(command2);
+    const secret = await findSecretByName(connection, username);
+    if (!secret) {
+      throw new Error(`User PPPoE "${username}" tidak ditemukan`);
     }
 
-    // fallback lain: cari id lalu remove berdasarkan id
-    if (result.stderr) {
-      const findRes = await ssh.execCommand(
-        `/ppp secret print where name="${username}"`
-      );
-      const match = (findRes.stdout || "").match(/^\s*(\d+)\s+/m);
-      if (match) {
-        const id = match[1];
-        result = await ssh.execCommand(`/ppp secret remove ${id}`);
-      }
-    }
+    const identifier =
+      toStringValue(secret[".id"]) || toStringValue(secret["name"]);
 
-    if (result.stderr) {
-      throw new Error(`Gagal menghapus user PPPoE: ${result.stderr}`);
-    }
+    await connection.write("/ppp/secret/remove", [`=numbers=${identifier}`]);
 
-    // tetap logging seperti sebelumnya
-    console.log("Berhasil menghapus user PPPoE:", result.stdout);
+    console.log("Berhasil menghapus user PPPoE:", username);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error ?? "Unknown error");
+    throw new Error(`Gagal menghapus user PPPoE: ${message}`);
   } finally {
-    ssh.dispose();
+    await close();
   }
 }
 
@@ -123,35 +120,30 @@ export async function movePPPOEToProfile(
     profile: string;
   }
 ) {
-  const ssh = new NodeSSH();
+  const { connection, close } = await createRouterOSConnection(config);
+
   try {
-    const command1 = `/ppp secret set [find name=${user.name}] profile=${user.profile}`;
-
-    await ssh.connect({
-      host: config.host,
-      username: config.username,
-      password: config.password,
-      port: config.port,
-      tryKeyboard: true,
-    });
-
-    let result = await ssh.execCommand(command1);
-
-    if (result.stderr) {
-      // fallback dengan quoting
-      const command2 = `/ppp secret set [find name="${user.name}"] profile="${user.profile}"`;
-      result = await ssh.execCommand(command2);
+    const secret = await findSecretByName(connection, user.name);
+    if (!secret) {
+      throw new Error(`User PPPoE "${user.name}" tidak ditemukan`);
     }
 
-    if (result.stderr) {
-      throw new Error(`Gagal memindahkan user PPPoE: ${result.stderr}`);
-    }
+    const identifier =
+      toStringValue(secret[".id"]) || toStringValue(secret["name"]);
+
+    await connection.write("/ppp/secret/set", [
+      `=.id=${identifier}`,
+      `=profile=${user.profile}`,
+    ]);
 
     console.log(
-      `Berhasil memindahkan user ${user.name} ke profile ${user.profile}:`,
-      result.stdout
+      `Berhasil memindahkan user ${user.name} ke profile ${user.profile}`
     );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error ?? "Unknown error");
+    throw new Error(`Gagal memindahkan user PPPoE: ${message}`);
   } finally {
-    ssh.dispose();
+    await close();
   }
 }
