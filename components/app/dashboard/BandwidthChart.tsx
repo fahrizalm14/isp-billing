@@ -33,13 +33,18 @@ function useAnimatedNumber(value: number | undefined, duration = 500) {
   const fromRef = useRef(0);
   const targetRef = useRef<number | undefined>(value);
   const startTimeRef = useRef(0);
+  const displayRef = useRef(display);
+
+  useEffect(() => {
+    displayRef.current = display;
+  }, [display]);
 
   useEffect(() => {
     if (typeof value !== "number") return;
-    cancelAnimationFrame(rafRef.current!);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
     // nilai awal animasi = display terakhir, target baru = value
-    fromRef.current = display;
+    fromRef.current = displayRef.current;
     targetRef.current = value;
     startTimeRef.current = performance.now();
 
@@ -54,7 +59,9 @@ function useAnimatedNumber(value: number | undefined, duration = 500) {
     };
 
     rafRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafRef.current!);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, [value, duration]); // panjang dependencies sekarang selalu konstan (2)
 
   return display;

@@ -243,12 +243,14 @@ export async function createPayment({
   });
 
   const web = await prisma.websiteInfo.findFirst();
+  const fallbackEmail = `${customerName.split(" ").join("")}@mail.id`;
+  const normalizedEmail = email.trim() || fallbackEmail;
   if (web?.midtransSecretKey && web.midtransServerKey) {
     paymentLink = await getPaymentLink({
       amount: totals.total,
       id,
       customer: {
-        email: `${customerName.split(" ").join("")}@mail.id`,
+        email: normalizedEmail,
         name: customerName,
         phone: validPhoneNumber,
       },
