@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent } from "./ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 
 interface PaymentHistory {
   id: string;
@@ -74,7 +74,9 @@ export default function SubscriptionDetailModal({
         <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto text-sm">
           {/* Header */}
           <div className="flex justify-between items-center border-b pb-2 mb-3">
-            <h2 className="text-lg font-semibold">Detail Langganan</h2>
+            <DialogTitle className="text-lg font-semibold">
+              Detail Langganan
+            </DialogTitle>
           </div>
 
           {loading ? (

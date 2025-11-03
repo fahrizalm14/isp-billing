@@ -2,7 +2,9 @@
 //   generatePaymentNumber,
 //   generateSubscriptionNumber,
 // } from "@/lib/numbering";
+import { decrypt } from "@/lib/crypto";
 import { formatPhoneNumberToIndonesia } from "@/lib/mikrotik/adapator";
+import { createUserPPPOE, getPPPOESecret } from "@/lib/mikrotik/pppoe";
 import { generateSubscriptionNumber } from "@/lib/numbering";
 import { createPayment } from "@/lib/payment";
 import { prisma } from "@/lib/prisma";
@@ -18,6 +20,13 @@ interface Address {
   street: string;
 }
 
+interface PPPoESecretPayload {
+  id?: string;
+  username?: string;
+  password?: string;
+  fromRouter?: boolean;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -30,6 +39,7 @@ export async function POST(req: Request) {
       packageId,
       dueDate,
       discount = 0,
+      pppoeSecret,
     } = body;
     const sanitizedDiscount =
       typeof discount === "number" && Number.isFinite(discount)
@@ -55,6 +65,9 @@ export async function POST(req: Request) {
     // ambil info harga paket
     const pkg = await prisma.package.findUnique({
       where: { id: packageId },
+      include: {
+        router: true,
+      },
     });
 
     if (!pkg)
@@ -62,6 +75,120 @@ export async function POST(req: Request) {
         { error: "Paket tidak ditemukan!" },
         { status: 400 }
       );
+
+    const router = pkg.router;
+    const secretPayload = (pppoeSecret || null) as PPPoESecretPayload | null;
+    let assignedSecret: {
+      username: string;
+      password: string;
+      localAddress?: string;
+    } | null = null;
+
+    if (secretPayload?.username) {
+      const normalizedUsername = String(secretPayload.username).trim();
+      const normalizedPassword = String(secretPayload.password ?? "").trim();
+
+      if (!normalizedUsername) {
+        return NextResponse.json(
+          { error: "Username PPPoE wajib diisi." },
+          { status: 400 }
+        );
+      }
+
+      const ensureRouter = () => {
+        if (!router) {
+          throw new Error("Router untuk paket tidak ditemukan!");
+        }
+        return {
+          host: router.ipAddress,
+          username: router.apiUsername,
+          password: decrypt(router.apiPassword),
+          port: Number(router.port) || 22,
+        };
+      };
+
+      if (secretPayload.fromRouter) {
+        if (!router) {
+          return NextResponse.json(
+            { error: "Router untuk paket tidak ditemukan!" },
+            { status: 400 }
+          );
+        }
+
+        const routerConfig = ensureRouter();
+
+        const secretDetail = await getPPPOESecret(
+          routerConfig,
+          normalizedUsername
+        );
+
+        if (!secretDetail) {
+          return NextResponse.json(
+            { error: "Secret PPPoE tidak ditemukan di router." },
+            { status: 400 }
+          );
+        }
+
+        const resolvedPassword =
+          secretDetail.password && secretDetail.password !== "***"
+            ? secretDetail.password
+            : normalizedPassword;
+
+        if (!resolvedPassword) {
+          return NextResponse.json(
+            {
+              error: "Password PPPoE tidak tersedia.",
+            },
+            { status: 400 }
+          );
+        }
+
+        assignedSecret = {
+          username: secretDetail.username,
+          password: resolvedPassword,
+          localAddress: secretDetail.localAddress || "",
+        };
+      } else {
+        if (!normalizedPassword) {
+          return NextResponse.json(
+            {
+              error: "Password PPPoE wajib diisi untuk input manual.",
+            },
+            { status: 400 }
+          );
+        }
+
+        try {
+          const routerConfig = ensureRouter();
+
+          await createUserPPPOE(routerConfig, {
+            name: normalizedUsername,
+            password: normalizedPassword,
+            profile: pkg.profileName || "",
+            localAddress: pkg.localAddress || undefined,
+          });
+        } catch (error) {
+          console.error(
+            "[POST][SUBSCRIPTION] gagal create PPPoE manual",
+            error
+          );
+          return NextResponse.json(
+            {
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Gagal membuat user PPPoE manual.",
+            },
+            { status: 400 }
+          );
+        }
+
+        assignedSecret = {
+          username: normalizedUsername,
+          password: normalizedPassword,
+        };
+      }
+    }
 
     const number = await generateSubscriptionNumber();
     const validPhoneNumber = formatPhoneNumberToIndonesia(phone);
@@ -101,6 +228,17 @@ export async function POST(req: Request) {
       },
     });
 
+    if (assignedSecret) {
+      await prisma.userPPPOE.create({
+        data: {
+          subscriptionId: subs.id,
+          username: assignedSecret.username,
+          password: assignedSecret.password,
+          localAddress: assignedSecret.localAddress || "",
+        },
+      });
+    }
+
     await runTriggers("REGISTER_SUCCESS", subs.id);
     await createPayment({
       amount: pkg.price,
@@ -114,7 +252,19 @@ export async function POST(req: Request) {
       subscriptionId: subs.id,
     });
 
-    return NextResponse.json({ success: true, subscription: [] });
+    return NextResponse.json({
+      success: true,
+      subscription: {
+        id: subs.id,
+        number: subs.number,
+        pppoe: assignedSecret
+          ? {
+              username: assignedSecret.username,
+              password: assignedSecret.password,
+            }
+          : null,
+      },
+    });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     console.error(err);

@@ -141,6 +141,37 @@ export async function deleteUserPPPOE(
   }
 }
 
+export async function getPPPOESecret(
+  config: {
+    host: string;
+    username: string;
+    password: string;
+    port: number;
+  },
+  username: string
+) {
+  const { connection, close } = await createRouterOSConnection(config);
+
+  try {
+    const secret = await findSecretByName(connection, username);
+    if (!secret) {
+      return null;
+    }
+
+    return {
+      id: toStringValue(secret[".id"]),
+      username: toStringValue(secret["name"]) || username,
+      password: toStringValue(secret["password"]),
+      profile: toStringValue(secret["profile"]),
+      service: toStringValue(secret["service"]),
+      localAddress: toStringValue(secret["local-address"]),
+      comment: toStringValue(secret["comment"]),
+    };
+  } finally {
+    await close();
+  }
+}
+
 export async function movePPPOEToProfile(
   config: {
     host: string;

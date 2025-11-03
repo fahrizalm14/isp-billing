@@ -1,0 +1,80 @@
+import { decrypt } from "@/lib/crypto";
+import { prisma } from "@/lib/prisma";
+import { createRouterOSConnection } from "@/lib/mikrotik/client";
+import { getSecretsStatus } from "@/lib/mikrotik/connection";
+import { NextRequest, NextResponse } from "next/server";
+
+const toStringValue = (value: unknown) =>
+  value === null || value === undefined ? "" : String(value);
+
+type SecretStatus = "active" | "inactive";
+
+const mapSecretRecords = (
+  records: Record<string, string>[],
+  status: SecretStatus
+) =>
+  records.map((secret) => {
+    const username =
+      toStringValue(secret["name"]) ||
+      toStringValue(secret["user"]) ||
+      toStringValue(secret["username"]);
+
+    return {
+      id: toStringValue(secret[".id"]),
+      username,
+      password: toStringValue(secret["password"]),
+      profile: toStringValue(secret["profile"]),
+      service: toStringValue(secret["service"]),
+      comment: toStringValue(secret["comment"]),
+      lastLoggedOut:
+        toStringValue(secret["last-logged-out"]) ||
+        toStringValue(secret["last-logout"]) ||
+        null,
+      status,
+    };
+  });
+
+export async function GET(req: NextRequest) {
+  const pathParts = req.nextUrl.pathname.split("/");
+  const routerId = pathParts[pathParts.length - 2];
+
+  try {
+    const router = await prisma.router.findUnique({
+      where: { id: routerId },
+    });
+
+    if (!router) {
+      return NextResponse.json(
+        { error: "Router tidak ditemukan" },
+        { status: 404 }
+      );
+    }
+
+    const { connection, close } = await createRouterOSConnection({
+      host: router.ipAddress,
+      username: router.apiUsername,
+      password: decrypt(router.apiPassword),
+      port: router.port,
+    });
+
+    try {
+      const secrets = await getSecretsStatus(connection);
+
+      return NextResponse.json({
+        success: true,
+        secrets: {
+          active: mapSecretRecords(secrets.active, "active"),
+          inactive: mapSecretRecords(secrets.inactive, "inactive"),
+        },
+      });
+    } finally {
+      await close();
+    }
+  } catch (error) {
+    console.error(`[GET][ROUTER][${routerId}][SECRETS]`, error);
+    return NextResponse.json(
+      { error: "Gagal mengambil data PPPoE secrets" },
+      { status: 500 }
+    );
+  }
+}

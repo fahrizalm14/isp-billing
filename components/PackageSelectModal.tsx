@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 interface PackageSelectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (user: { id: string; name: string }) => void;
+  onSelect: (pkg: { id: string; name: string; routerId: string }) => void;
 }
 
 export default function PackageSelectModal({
@@ -42,9 +42,9 @@ export default function PackageSelectModal({
       const res = await fetch(`/api/package?${params}`, {
         signal: controller.signal,
       });
-      const { data } = await res.json();
-      setPackages(data || []);
-      setTotalPages(data.totalPages || 1);
+      const json = await res.json();
+      setPackages(json.data || []);
+      setTotalPages(json.totalPages || 1);
       setLoading(false);
     };
 
@@ -68,7 +68,7 @@ export default function PackageSelectModal({
 
         <input
           type="text"
-          placeholder="Cari nama user..."
+          placeholder="Cari nama paket..."
           className="w-full border px-3 py-2 rounded text-xs md:text-sm"
           value={search}
           onChange={(e) => {
@@ -122,6 +122,7 @@ export default function PackageSelectModal({
                             onSelect({
                               id: _package.id || "",
                               name: _package.name,
+                              routerId: _package.routerId,
                             });
                             onClose();
                           }}

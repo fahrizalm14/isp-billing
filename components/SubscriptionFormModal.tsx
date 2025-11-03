@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -36,6 +36,8 @@ const SubscriptionSchema = z.object({
   taxAmount: z.number().min(0),
   discount: z.number().min(0),
   dueDate: z.string().optional(),
+  pppoeUsername: z.string().optional(),
+  pppoePassword: z.string().optional(),
 });
 
 type SubscriptionFormData = z.infer<typeof SubscriptionSchema>;
@@ -45,6 +47,15 @@ type Props = {
   onClose: () => void;
   onSuccess: () => void;
   subscriptionId?: string;
+};
+
+type PPPoESecretOption = {
+  id: string;
+  username: string;
+  password: string;
+  profile: string;
+  status: "active" | "inactive";
+  comment?: string;
 };
 
 const EMPTY_SUBS: SubscriptionFormData = {
@@ -63,6 +74,8 @@ const EMPTY_SUBS: SubscriptionFormData = {
   taxAmount: 0,
   discount: 0,
   dueDate: "",
+  pppoeUsername: "",
+  pppoePassword: "",
 };
 
 export default function SubscriptionFormModal({
@@ -79,16 +92,107 @@ export default function SubscriptionFormModal({
     setRootModal(open);
   }, [open]);
 
+  useEffect(() => {
+    if (open) return;
+    setSelectedRouterId("");
+    setSelectedSecretKey("");
+    setInitialSecretUsername("");
+    setPppoeSecrets([]);
+    setLoadingSecrets(false);
+  }, [open]);
+
   const [odpModal, setOdpModal] = useState(false);
   const [packageModal, setPackageModal] = useState(false);
   const [odpName, setOdpName] = useState("");
   const [packageName, setPackageName] = useState("");
+  const [pppoeSecrets, setPppoeSecrets] = useState<PPPoESecretOption[]>([]);
+  const [selectedSecretKey, setSelectedSecretKey] = useState("");
+  const [selectedRouterId, setSelectedRouterId] = useState("");
+  const [loadingSecrets, setLoadingSecrets] = useState(false);
+  const [initialSecretUsername, setInitialSecretUsername] = useState("");
+
+  const fetchSecrets = useCallback(async (routerId: string) => {
+    if (!routerId) {
+      setPppoeSecrets([]);
+      return;
+    }
+
+    setLoadingSecrets(true);
+    try {
+      const res = await fetch(`/api/router/mikrotik/${routerId}/secrets`);
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error || "Gagal mengambil secret PPPoE");
+      }
+
+      const inactive: PPPoESecretOption[] = (json.secrets?.inactive || []).map(
+        (secret: Record<string, string>, index: number) => ({
+          id:
+            secret.id ||
+            secret.username ||
+            `inactive-${index}-${secret.profile || "secret"}`,
+          username: secret.username || "",
+          password: secret.password || "",
+          profile: secret.profile || "",
+          status: "inactive",
+          comment: secret.comment,
+        })
+      );
+
+      const active: PPPoESecretOption[] = (json.secrets?.active || []).map(
+        (secret: Record<string, string>, index: number) => ({
+          id:
+            secret.id ||
+            secret.username ||
+            `active-${index}-${secret.profile || "secret"}`,
+          username: secret.username || "",
+          password: secret.password || "",
+          profile: secret.profile || "",
+          status: "active",
+          comment: secret.comment,
+        })
+      );
+
+      const combined = [...inactive, ...active];
+      setPppoeSecrets(combined);
+    } catch (error) {
+      console.error(error);
+      setPppoeSecrets([]);
+      SwalToast.fire({
+        icon: "warning",
+        title: "Gagal memuat PPPoE secret dari router.",
+      });
+    } finally {
+      setLoadingSecrets(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedRouterId) {
+      setPppoeSecrets([]);
+      return;
+    }
+
+    fetchSecrets(selectedRouterId);
+  }, [selectedRouterId, fetchSecrets]);
+
+  useEffect(() => {
+    if (!initialSecretUsername || selectedSecretKey) return;
+    const match = pppoeSecrets.find(
+      (secret) => secret.username === initialSecretUsername
+    );
+    if (match) {
+      setSelectedSecretKey(match.id);
+    }
+  }, [initialSecretUsername, selectedSecretKey, pppoeSecrets]);
 
   const {
     register,
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<SubscriptionFormData>({
     resolver: zodResolver(SubscriptionSchema),
@@ -120,15 +224,24 @@ export default function SubscriptionFormModal({
             taxAmount: 0,
             discount: data.discount || 0,
             dueDate: data.dueDate || "",
+            pppoeUsername: data.username || "",
+            pppoePassword: data.password || "",
           });
 
           setOdpName(data.odp || "");
           setPackageName(data.packageName || "");
+          setSelectedRouterId(data.routerId || "");
+          setInitialSecretUsername(data.username || "");
+          setSelectedSecretKey("");
         });
     } else if (!isEdit) {
       reset(EMPTY_SUBS);
       setOdpName("");
       setPackageName("");
+      setSelectedRouterId("");
+      setInitialSecretUsername("");
+      setSelectedSecretKey("");
+      setPppoeSecrets([]);
     }
   }, [isEdit, open, reset, subscriptionId]);
 
@@ -136,7 +249,10 @@ export default function SubscriptionFormModal({
   const onSubmit = async (form: SubscriptionFormData) => {
     setLoading(true);
     try {
-      const payload = {
+      const trimmedUsername = form.pppoeUsername?.trim() || "";
+      const trimmedPassword = form.pppoePassword?.trim() || "";
+
+      const payload: Record<string, unknown> = {
         customerName: form.name,
         customerPhone: form.phone,
         address: form.address,
@@ -146,6 +262,14 @@ export default function SubscriptionFormModal({
         discount: form.discount,
         dueDate: form.dueDate,
       };
+
+      if (trimmedUsername) {
+        payload.pppoeSecret = {
+          username: trimmedUsername,
+          password: trimmedPassword,
+          fromRouter: Boolean(selectedSecretKey),
+        };
+      }
 
       const res = await fetch(
         isEdit ? `/api/subscription/${subscriptionId}` : "/api/subscription",
@@ -160,8 +284,18 @@ export default function SubscriptionFormModal({
         onSuccess();
         onClose();
         reset(EMPTY_SUBS);
+        setPackageName("");
+        setOdpName("");
+        setSelectedRouterId("");
+        setSelectedSecretKey("");
+        setPppoeSecrets([]);
+        setInitialSecretUsername("");
       } else {
-        SwalToast.fire({ icon: "error", title: "Gagal menyimpan data." });
+        const _msg = await res.json();
+        SwalToast.fire({
+          icon: "warning",
+          title: _msg?.error ?? "Gagal menyimpan data.",
+        });
       }
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
@@ -180,13 +314,60 @@ export default function SubscriptionFormModal({
     setOdpName(name);
   };
 
-  const onSelectPackage = ({ name, id }: { name: string; id: string }) => {
+  const onSelectPackage = ({
+    name,
+    id,
+    routerId,
+  }: {
+    name: string;
+    id: string;
+    routerId: string;
+  }) => {
     setRootModal(true);
+    const current = watch();
     reset({
-      ...watch(),
+      ...current,
       packageId: id,
+      pppoeUsername: "",
+      pppoePassword: "",
     });
     setPackageName(name);
+    setSelectedRouterId(routerId);
+    setSelectedSecretKey("");
+    setInitialSecretUsername("");
+  };
+
+  const usernameField = register("pppoeUsername");
+  const passwordField = register("pppoePassword");
+  const selectedSecret = selectedSecretKey
+    ? pppoeSecrets.find((secret) => secret.id === selectedSecretKey)
+    : null;
+
+  const handleSecretSelect = (event: ChangeEvent<HTMLSelectElement>) => {
+    const value = event.target.value;
+    setSelectedSecretKey(value);
+
+    if (!value) {
+      setValue("pppoeUsername", "");
+      setValue("pppoePassword", "");
+      return;
+    }
+
+    const secret = pppoeSecrets.find((item) => item.id === value);
+    if (secret) {
+      setValue("pppoeUsername", secret.username);
+      setValue("pppoePassword", secret.password);
+    }
+  };
+
+  const handleUsernameChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setSelectedSecretKey("");
+    usernameField.onChange(event);
+  };
+
+  const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setSelectedSecretKey("");
+    passwordField.onChange(event);
   };
 
   return (
@@ -283,6 +464,81 @@ export default function SubscriptionFormModal({
                     {errors.packageId.message}
                   </p>
                 )}
+              </div>
+            </div>
+
+            {/* PPPoE Secret */}
+            <div className="space-y-3 rounded-md border border-dashed border-neutral-300 p-3 dark:border-neutral-700">
+              <p className="text-sm font-medium">Assign PPPoE Secret</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label>User PPPoE</label>
+                  <Input
+                    {...usernameField}
+                    placeholder="contoh: pelanggan01"
+                    onChange={handleUsernameChange}
+                    disabled
+                  />
+                  {errors.pppoeUsername && (
+                    <p className="text-sm text-red-500">
+                      {errors.pppoeUsername.message}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label>Password PPPoE</label>
+                  <Input
+                    type="text"
+                    {...passwordField}
+                    placeholder="Masukkan password PPPoE"
+                    onChange={handlePasswordChange}
+                    disabled
+                  />
+                  {errors.pppoePassword && (
+                    <p className="text-sm text-red-500">
+                      {errors.pppoePassword.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block">Pilih dari Secret Router</label>
+                <select
+                  className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                  value={selectedSecretKey}
+                  onChange={handleSecretSelect}
+                  disabled={!selectedRouterId || loadingSecrets}
+                >
+                  <option value="">
+                    {!selectedRouterId
+                      ? "Pilih paket untuk memuat secret"
+                      : loadingSecrets
+                      ? "Memuat secrets..."
+                      : "— Pilih Secret PPPoE —"}
+                  </option>
+                  {pppoeSecrets.map((secret) => (
+                    <option key={secret.id} value={secret.id}>
+                      {secret.username || "(tanpa nama)"} •{" "}
+                      {secret.status === "active" ? "Active" : "Inactive"}
+                    </option>
+                  ))}
+                </select>
+                {selectedSecret && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Profil: {selectedSecret.profile || "-"} • Status:{" "}
+                    {selectedSecret.status === "active" ? "Aktif" : "Nonaktif"}
+                    {selectedSecret.comment
+                      ? ` • Catatan: ${selectedSecret.comment}`
+                      : ""}
+                  </p>
+                )}
+                {!loadingSecrets &&
+                  selectedRouterId &&
+                  !pppoeSecrets.length && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Tidak ada secret PPPoE yang tersedia pada router ini.
+                    </p>
+                  )}
               </div>
             </div>
 

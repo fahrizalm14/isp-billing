@@ -1,7 +1,12 @@
 import { decrypt } from "@/lib/crypto";
-import { deleteUserPPPOE, movePPPOEToProfile } from "@/lib/mikrotik/pppoe";
-import { prisma } from "@/lib/prisma";
+import {
+  createUserPPPOE,
+  deleteUserPPPOE,
+  getPPPOESecret,
+  movePPPOEToProfile,
+} from "@/lib/mikrotik/pppoe";
 import { calculatePaymentTotals } from "@/lib/paymentTotals";
+import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function DELETE(
@@ -107,6 +112,7 @@ export async function GET(
       odp: subscription.odp?.name || "",
       odpId: subscription.odp?.id || "",
       routerName: subscription.odp?.router?.name || "",
+      routerId: subscription.package?.routerId || "",
       customerName: subscription.userProfile?.name || "",
       customerPhone: subscription.userProfile?.phone || "",
       customerAddress: subscription.userProfile?.address
@@ -183,11 +189,17 @@ export async function PUT(
       packageId,
       dueDate,
       discount = 0,
+      pppoeSecret,
     } = body;
     const sanitizedDiscount =
       typeof discount === "number" && Number.isFinite(discount)
         ? Math.max(Math.floor(discount), 0)
         : 0;
+    const secretPayload = (pppoeSecret || null) as {
+      username?: string;
+      password?: string;
+      fromRouter?: boolean;
+    } | null;
 
     const subs = await prisma.subscription.findUnique({
       where: { id },
@@ -251,24 +263,202 @@ export async function PUT(
       },
     });
 
+    let finalSubscription = updatedSubscription;
+    const router = updatedSubscription.package?.router || null;
+    const currentPPPOE =
+      updatedSubscription.usersPPPOE.length > 0
+        ? updatedSubscription.usersPPPOE[0]
+        : null;
+
+    if (secretPayload?.username) {
+      const normalizedUsername = String(secretPayload.username).trim();
+      const normalizedPassword = String(secretPayload.password ?? "").trim();
+
+      if (!normalizedUsername) {
+        return NextResponse.json(
+          { error: "Username PPPoE wajib diisi." },
+          { status: 400 }
+        );
+      }
+
+      const ensureRouter = () => {
+        if (!router) {
+          throw new Error("Router untuk paket tidak ditemukan!");
+        }
+        return {
+          host: router.ipAddress,
+          username: router.apiUsername,
+          password: decrypt(router.apiPassword),
+          port: Number(router.port) || 22,
+        };
+      };
+
+      if (secretPayload.fromRouter) {
+        try {
+          const routerConfig = ensureRouter();
+          const secretDetail = await getPPPOESecret(
+            routerConfig,
+            normalizedUsername
+          );
+
+          if (!secretDetail) {
+            return NextResponse.json(
+              { error: "Secret PPPoE tidak ditemukan di router." },
+              { status: 400 }
+            );
+          }
+
+          const resolvedPassword =
+            secretDetail.password && secretDetail.password !== "***"
+              ? secretDetail.password
+              : normalizedPassword;
+
+          if (!resolvedPassword) {
+            return NextResponse.json(
+              {
+                error: "Password PPPoE tidak tersedia.",
+              },
+              { status: 400 }
+            );
+          }
+
+          if (currentPPPOE) {
+            await prisma.userPPPOE.update({
+              where: { id: currentPPPOE.id },
+              data: {
+                username: secretDetail.username,
+                password: resolvedPassword,
+                localAddress: secretDetail.localAddress || "",
+              },
+            });
+          } else {
+            await prisma.userPPPOE.create({
+              data: {
+                subscriptionId: id,
+                username: secretDetail.username,
+                password: resolvedPassword,
+                localAddress: secretDetail.localAddress || "",
+              },
+            });
+          }
+
+          if (updatedSubscription.package?.profileName) {
+            await movePPPOEToProfile(routerConfig, {
+              profile: updatedSubscription.package.profileName,
+              name: secretDetail.username,
+            });
+          }
+        } catch (error) {
+          console.error(
+            `[PUT][SUBSCRIPTION][${id}] gagal assign secret router`,
+            error
+          );
+          return NextResponse.json(
+            {
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Gagal memperbarui PPPoE dari router.",
+            },
+            { status: 400 }
+          );
+        }
+      } else {
+        if (!normalizedPassword) {
+          return NextResponse.json(
+            {
+              error: "Password PPPoE wajib diisi untuk input manual.",
+            },
+            { status: 400 }
+          );
+        }
+
+        try {
+          const routerConfig = ensureRouter();
+
+          if (currentPPPOE) {
+            try {
+              await deleteUserPPPOE(routerConfig, currentPPPOE.username);
+            } catch (err) {
+              console.warn(
+                `[PUT][SUBSCRIPTION][${id}] tidak dapat menghapus PPPoE lama`,
+                err
+              );
+            }
+          }
+
+          await createUserPPPOE(routerConfig, {
+            name: normalizedUsername,
+            password: normalizedPassword,
+            profile: updatedSubscription.package?.profileName || "",
+            localAddress:
+              updatedSubscription.package?.localAddress || undefined,
+          });
+
+          if (currentPPPOE) {
+            await prisma.userPPPOE.update({
+              where: { id: currentPPPOE.id },
+              data: {
+                username: normalizedUsername,
+                password: normalizedPassword,
+                localAddress: updatedSubscription.package?.localAddress || "",
+              },
+            });
+          } else {
+            await prisma.userPPPOE.create({
+              data: {
+                subscriptionId: id,
+                username: normalizedUsername,
+                password: normalizedPassword,
+                localAddress: updatedSubscription.package?.localAddress || "",
+              },
+            });
+          }
+        } catch (error) {
+          console.error(
+            `[PUT][SUBSCRIPTION][${id}] gagal create PPPoE manual`,
+            error
+          );
+          return NextResponse.json(
+            {
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Gagal memperbarui PPPoE manual.",
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      finalSubscription =
+        (await prisma.subscription.findUnique({
+          where: { id },
+          include: {
+            package: { include: { router: true } },
+            usersPPPOE: true,
+          },
+        })) ?? updatedSubscription;
+    }
+
     // ✅ move PPPoE user ke profile sesuai package baru
     if (
-      updatedSubscription.usersPPPOE.length &&
-      updatedSubscription.package?.router
+      finalSubscription.usersPPPOE.length &&
+      finalSubscription.package?.router
     ) {
-      const router = updatedSubscription.package.router;
-      const userPPPOE = updatedSubscription.usersPPPOE[0];
+      const newRouter = finalSubscription.package.router;
+      const userPPPOE = finalSubscription.usersPPPOE[0];
 
       try {
         await movePPPOEToProfile(
           {
-            host: router.ipAddress,
-            username: router.apiUsername,
-            password: decrypt(router.apiPassword),
-            port: router.port,
+            host: newRouter.ipAddress,
+            username: newRouter.apiUsername,
+            password: decrypt(newRouter.apiPassword),
+            port: newRouter.port,
           },
           {
-            profile: updatedSubscription.package.profileName,
+            profile: finalSubscription.package.profileName,
             name: userPPPOE.username,
           }
         );
@@ -279,7 +469,7 @@ export async function PUT(
 
     return NextResponse.json({
       message: "Langganan berhasil diperbarui.",
-      data: updatedSubscription,
+      data: finalSubscription,
     });
   } catch (error) {
     console.error("[PUT][SUBSCRIPTION]", error);
