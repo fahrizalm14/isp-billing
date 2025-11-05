@@ -420,7 +420,7 @@ export default function OdpListPage() {
             item persis.
           </>
         }
-        requiredText={odp.name}
+        // requiredText={odp.name}
         matchMode="equals"
         confirmLabel="Hapus"
         cancelLabel="Batal"

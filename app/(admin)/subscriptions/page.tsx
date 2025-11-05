@@ -489,7 +489,7 @@ export default function SubscriptionPage() {
             item persis.
           </>
         }
-        requiredText={subsAction.name}
+        // requiredText={subsAction.name}
         matchMode="equals" // tidak case sensitive
         confirmLabel={subsAction.type === "delete" ? "Hapus" : "Proses"}
         cancelLabel="Batal"

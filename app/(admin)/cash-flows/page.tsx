@@ -271,7 +271,7 @@ export default function CashflowPage() {
             item persis.
           </>
         }
-        requiredText={deleteCashFlow.name}
+        // requiredText={deleteCashFlow.name}
         matchMode="equals" // tidak case sensitive
         confirmLabel="Hapus"
         cancelLabel="Batal"

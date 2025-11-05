@@ -434,7 +434,7 @@ export default function UserManagement() {
             item persis.
           </>
         }
-        requiredText={userDelete.name}
+        // requiredText={userDelete.name}
         matchMode="iequals" // tidak case sensitive
         confirmLabel="Hapus"
         cancelLabel="Batal"

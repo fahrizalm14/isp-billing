@@ -212,13 +212,13 @@ export default function PackagesPage() {
                   <button
                     title="edit"
                     className="p-2 bg-primary text-white rounded mr-2"
-                  onClick={() => {
-                    setSelectedPackage({
-                      ...pkg,
-                      rateLimit: pkg.rateLimit || "",
-                      price: `${pkg.price}`,
-                      profileName: pkg.profileName,
-                    });
+                    onClick={() => {
+                      setSelectedPackage({
+                        ...pkg,
+                        rateLimit: pkg.rateLimit || "",
+                        price: `${pkg.price}`,
+                        profileName: pkg.profileName,
+                      });
                       setModalOpen(true);
                     }}
                   >
@@ -289,7 +289,7 @@ export default function PackagesPage() {
             item persis.
           </>
         }
-        requiredText={deletePackage.name}
+        // requiredText={deletePackage.name}
         matchMode="iequals" // tidak case sensitive
         confirmLabel="Hapus"
         cancelLabel="Batal"

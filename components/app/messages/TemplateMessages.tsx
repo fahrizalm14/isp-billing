@@ -368,7 +368,7 @@ const TemplateMessages: React.FC<TemplateMessageProps> = ({
             Tindakan ini tidak dapat dibatalkan.
           </span>
         }
-        requiredText={deletingName}
+        // requiredText={deletingName}
         inputPlaceholder={deletingName}
         hint="Ketik nama template (tidak case-sensitive) untuk konfirmasi."
         matchMode="iequals"

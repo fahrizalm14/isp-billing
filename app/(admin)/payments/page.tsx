@@ -275,7 +275,9 @@ export default function PaymentPage() {
                     Rp {pay.amount.toLocaleString("id-ID")}
                   </div>
                   <p className="text-xs text-gray-500">
-                    Subtotal Rp {pay.subtotal.toLocaleString("id-ID")} - Diskon Rp {pay.discount.toLocaleString("id-ID")} + Pajak ({pay.tax}% ) Rp {pay.taxValue.toLocaleString("id-ID")}
+                    Subtotal Rp {pay.subtotal.toLocaleString("id-ID")} - Diskon
+                    Rp {pay.discount.toLocaleString("id-ID")} + Pajak ({pay.tax}
+                    % ) Rp {pay.taxValue.toLocaleString("id-ID")}
                   </p>
                 </TableCell>
                 <TableCell>
@@ -412,7 +414,7 @@ export default function PaymentPage() {
             item persis.
           </>
         }
-        requiredText={deletePayment.name}
+        // requiredText={deletePayment.name}
         matchMode="equals"
         confirmLabel="Hapus"
         cancelLabel="Batal"

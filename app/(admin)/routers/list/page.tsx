@@ -305,7 +305,7 @@ export default function RouterListPage() {
             item persis.
           </>
         }
-        requiredText={router.name}
+        // requiredText={router.name}
         matchMode="equals" // tidak case sensitive
         confirmLabel="Hapus"
         cancelLabel="Batal"
