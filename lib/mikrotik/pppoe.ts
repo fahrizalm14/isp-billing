@@ -127,7 +127,12 @@ export async function createUserPPPOE(
       }
     }
 
-    await connection.write("/ppp/secret/add", params);
+    // Gunakan executeCommand untuk menangani response dengan benar di RouterOS 7
+    const result = await executeCommand(connection, "/ppp/secret/add", params);
+
+    if (result.code !== 0) {
+      throw new Error(result.stderr || "Gagal membuat PPPoE secret");
+    }
 
     console.log(`✅ Berhasil membuat PPPoE secret baru: ${user.name}`);
   } catch (error) {
@@ -177,7 +182,14 @@ export async function deleteUserPPPOE(
     const identifier =
       toStringValue(secret[".id"]) || toStringValue(secret["name"]);
 
-    await connection.write("/ppp/secret/remove", [`=numbers=${identifier}`]);
+    // Gunakan executeCommand untuk konsistensi dengan RouterOS 7
+    const result = await executeCommand(connection, "/ppp/secret/remove", [
+      `=numbers=${identifier}`,
+    ]);
+
+    if (result.code !== 0) {
+      throw new Error(result.stderr || "Gagal menghapus PPPoE secret");
+    }
 
     console.log("Berhasil menghapus user PPPoE:", username);
   } catch (error) {
@@ -252,10 +264,15 @@ export async function movePPPOEToProfile(
       );
     }
 
-    await connection.write("/ppp/secret/set", [
+    // Gunakan executeCommand untuk konsistensi dengan RouterOS 7
+    const result = await executeCommand(connection, "/ppp/secret/set", [
       `=.id=${identifier}`,
       `=profile=${targetProfile}`,
     ]);
+
+    if (result.code !== 0) {
+      throw new Error(result.stderr || "Gagal mengupdate PPPoE secret");
+    }
 
     console.log(
       `Berhasil memindahkan user ${user.name} ke profile ${targetProfile}`
