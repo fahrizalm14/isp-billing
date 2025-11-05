@@ -127,14 +127,24 @@ export async function createUserPPPOE(
       }
     }
 
-    // Gunakan executeCommand untuk menangani response dengan benar di RouterOS 7
-    const result = await executeCommand(connection, "/ppp/secret/add", params);
-
-    if (result.code !== 0) {
-      throw new Error(result.stderr || "Gagal membuat PPPoE secret");
+    // RouterOS 7 mengembalikan !empty untuk operasi sukses tanpa data
+    // Library node-routeros melempar error untuk !empty, padahal ini sukses
+    try {
+      await connection.write("/ppp/secret/add", params);
+      console.log(`✅ Berhasil membuat PPPoE secret baru: ${user.name}`);
+    } catch (writeError) {
+      // Jika error adalah !empty atau UNKNOWNREPLY, ini sebenarnya sukses
+      const errorMsg =
+        writeError instanceof Error ? writeError.message : String(writeError);
+      if (errorMsg.includes("!empty") || errorMsg.includes("UNKNOWNREPLY")) {
+        console.log(
+          `✅ Berhasil membuat PPPoE secret baru: ${user.name} (RouterOS 7 !empty response)`
+        );
+      } else {
+        // Error lain adalah error sebenarnya
+        throw writeError;
+      }
     }
-
-    console.log(`✅ Berhasil membuat PPPoE secret baru: ${user.name}`);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : String(error ?? "Unknown error");
