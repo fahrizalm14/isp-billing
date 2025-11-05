@@ -55,8 +55,8 @@ const serializeRecord = (record: Record<string, unknown>) => {
         rawValue === null || rawValue === undefined
           ? ""
           : typeof rawValue === "string"
-            ? rawValue
-            : String(rawValue);
+          ? rawValue
+          : String(rawValue);
       return `${key}=${quoteIfNeeded(value)}`;
     })
     .join(" ");
@@ -80,8 +80,15 @@ export const executeCommand = async (
     const stdout = records.map(serializeRecord).join("\n");
     return { code: 0, stdout, stderr: "", data: records };
   } catch (error) {
+    // Handle RouterOS 7 !empty response (sukses tapi tidak ada data dikembalikan)
     const message =
       error instanceof Error ? error.message : String(error ?? "Unknown error");
+
+    // !empty adalah response sukses dari RouterOS, bukan error
+    if (message.includes("!empty") || message.includes("UNKNOWNREPLY")) {
+      return { code: 0, stdout: "", stderr: "", data: [] };
+    }
+
     return { code: 1, stdout: "", stderr: message, data: [] };
   }
 };
