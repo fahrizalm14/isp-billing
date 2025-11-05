@@ -477,7 +477,7 @@ export default function SubscriptionFormModal({
                     {...usernameField}
                     placeholder="contoh: pelanggan01"
                     onChange={handleUsernameChange}
-                    disabled
+                    disabled={!!selectedSecretKey}
                   />
                   {errors.pppoeUsername && (
                     <p className="text-sm text-red-500">
@@ -492,7 +492,7 @@ export default function SubscriptionFormModal({
                     {...passwordField}
                     placeholder="Masukkan password PPPoE"
                     onChange={handlePasswordChange}
-                    disabled
+                    disabled={!!selectedSecretKey}
                   />
                   {errors.pppoePassword && (
                     <p className="text-sm text-red-500">
@@ -507,13 +507,19 @@ export default function SubscriptionFormModal({
                   className="mt-1 w-full rounded border px-3 py-2 text-sm"
                   value={selectedSecretKey}
                   onChange={handleSecretSelect}
-                  disabled={!selectedRouterId || loadingSecrets}
+                  disabled={
+                    !selectedRouterId ||
+                    loadingSecrets ||
+                    (!!watch("pppoeUsername") && !!watch("pppoePassword"))
+                  }
                 >
                   <option value="">
                     {!selectedRouterId
                       ? "Pilih paket untuk memuat secret"
                       : loadingSecrets
                       ? "Memuat secrets..."
+                      : watch("pppoeUsername") && watch("pppoePassword")
+                      ? "— Input Manual Aktif —"
                       : "— Pilih Secret PPPoE —"}
                   </option>
                   {pppoeSecrets.map((secret) => (

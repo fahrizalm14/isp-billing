@@ -85,6 +85,14 @@ export async function createUserPPPOE(
   const { connection, close } = await createRouterOSConnection(config);
 
   try {
+    // ✅ Cek apakah username sudah ada
+    const existingSecret = await findSecretByName(connection, user.name);
+    if (existingSecret) {
+      throw new Error(
+        `Username PPPoE "${user.name}" sudah digunakan di MikroTik. Silakan gunakan username lain.`
+      );
+    }
+
     const params = [
       `=name=${user.name}`,
       `=password=${user.password}`,
@@ -92,11 +100,22 @@ export async function createUserPPPOE(
       `=profile=${user.profile}`,
     ];
 
+    // ✅ Hanya set local-address jika berupa IP address valid (bukan nama pool)
+    // MikroTik akan otomatis assign IP dari pool yang ada di profile
     if (user.localAddress) {
-      params.push(`=local-address=${user.localAddress}`);
+      const ipRegex = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;
+      if (ipRegex.test(user.localAddress.trim())) {
+        params.push(`=local-address=${user.localAddress}`);
+      } else {
+        console.log(
+          `⚠️ Skipping local-address "${user.localAddress}" (bukan IP valid, pool akan digunakan dari profile)`
+        );
+      }
     }
 
     await connection.write("/ppp/secret/add", params);
+
+    console.log(`✅ Berhasil membuat PPPoE secret baru: ${user.name}`);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : String(error ?? "Unknown error");

@@ -161,11 +161,25 @@ export async function POST(req: Request) {
         try {
           const routerConfig = ensureRouter();
 
+          // ✅ Validasi local address - hanya kirim jika format IP valid
+          const ipRegex = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;
+          const localAddr = pkg.localAddress?.trim();
+          const validLocalAddress =
+            localAddr && ipRegex.test(localAddr) ? localAddr : undefined;
+
+          console.log({
+            name: normalizedUsername,
+            password: normalizedPassword,
+            profile: pkg.profileName || "",
+            localAddress: validLocalAddress,
+            originalLocalAddress: pkg.localAddress,
+          });
+
           await createUserPPPOE(routerConfig, {
             name: normalizedUsername,
             password: normalizedPassword,
             profile: pkg.profileName || "",
-            localAddress: pkg.localAddress || undefined,
+            localAddress: validLocalAddress,
           });
         } catch (error) {
           console.error(

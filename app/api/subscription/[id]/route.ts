@@ -387,12 +387,17 @@ export async function PUT(
             }
           }
 
+          // ✅ Validasi local address - hanya kirim jika format IP valid
+          const ipRegex = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;
+          const localAddr = updatedSubscription.package?.localAddress?.trim();
+          const validLocalAddress =
+            localAddr && ipRegex.test(localAddr) ? localAddr : undefined;
+
           await createUserPPPOE(routerConfig, {
             name: normalizedUsername,
             password: normalizedPassword,
             profile: updatedSubscription.package?.profileName || "",
-            localAddress:
-              updatedSubscription.package?.localAddress || undefined,
+            localAddress: validLocalAddress,
           });
 
           if (currentPPPOE) {
@@ -401,7 +406,7 @@ export async function PUT(
               data: {
                 username: normalizedUsername,
                 password: normalizedPassword,
-                localAddress: updatedSubscription.package?.localAddress || "",
+                localAddress: validLocalAddress || "",
               },
             });
           } else {
@@ -410,7 +415,7 @@ export async function PUT(
                 subscriptionId: id,
                 username: normalizedUsername,
                 password: normalizedPassword,
-                localAddress: updatedSubscription.package?.localAddress || "",
+                localAddress: validLocalAddress || "",
               },
             });
           }
