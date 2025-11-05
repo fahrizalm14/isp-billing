@@ -109,6 +109,7 @@ export async function GET(
       dueDate: subscription.dueDate,
       expiredAt: subscription.expiredAt || new Date(),
       discount: subscription.discount || 0,
+      additionalPrice: subscription.additionalPrice || 0,
       odp: subscription.odp?.name || "",
       odpId: subscription.odp?.id || "",
       routerName: subscription.odp?.router?.name || "",
@@ -131,6 +132,7 @@ export async function GET(
         const totals = calculatePaymentTotals({
           amount: p.amount,
           discount: p.discount ?? 0,
+          additionalPrice: p.additionalPrice ?? 0,
           taxPercent: p.tax ?? 0,
         });
 
@@ -141,6 +143,7 @@ export async function GET(
           tax: totals.taxPercent,
           taxValue: totals.taxValue,
           discount: totals.discount,
+          additionalPrice: totals.additionalPrice,
           netAmount: totals.total,
           status: p.status,
           paymentMethod: p.paymentMethod,
@@ -189,11 +192,16 @@ export async function PUT(
       packageId,
       dueDate,
       discount = 0,
+      additionalPrice = 0,
       pppoeSecret,
     } = body;
     const sanitizedDiscount =
       typeof discount === "number" && Number.isFinite(discount)
         ? Math.max(Math.floor(discount), 0)
+        : 0;
+    const sanitizedAdditionalPrice =
+      typeof additionalPrice === "number" && Number.isFinite(additionalPrice)
+        ? Math.max(Math.floor(additionalPrice), 0)
         : 0;
     const secretPayload = (pppoeSecret || null) as {
       username?: string;
@@ -256,6 +264,7 @@ export async function PUT(
         updatedAt: new Date(),
         dueDate,
         discount: sanitizedDiscount,
+        additionalPrice: sanitizedAdditionalPrice,
       },
       include: {
         package: { include: { router: true } }, // ambil router baru

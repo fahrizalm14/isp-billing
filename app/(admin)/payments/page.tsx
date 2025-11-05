@@ -274,11 +274,6 @@ export default function PaymentPage() {
                   <div className="font-semibold">
                     Rp {pay.amount.toLocaleString("id-ID")}
                   </div>
-                  <p className="text-xs text-gray-500">
-                    Subtotal Rp {pay.subtotal.toLocaleString("id-ID")} - Diskon
-                    Rp {pay.discount.toLocaleString("id-ID")} + Pajak ({pay.tax}
-                    % ) Rp {pay.taxValue.toLocaleString("id-ID")}
-                  </p>
                 </TableCell>
                 <TableCell>
                   <span

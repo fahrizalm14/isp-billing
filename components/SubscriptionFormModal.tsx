@@ -35,6 +35,7 @@ const SubscriptionSchema = z.object({
   packageId: z.string().min(1, "Paket wajib dipilih"),
   taxAmount: z.number().min(0),
   discount: z.number().min(0),
+  additionalPrice: z.number().min(0),
   dueDate: z.string().optional(),
   pppoeUsername: z.string().optional(),
   pppoePassword: z.string().optional(),
@@ -73,6 +74,7 @@ const EMPTY_SUBS: SubscriptionFormData = {
   packageId: "",
   taxAmount: 0,
   discount: 0,
+  additionalPrice: 0,
   dueDate: "",
   pppoeUsername: "",
   pppoePassword: "",
@@ -223,6 +225,7 @@ export default function SubscriptionFormModal({
             packageId: data.packageId || "", // pakai ID dari API
             taxAmount: 0,
             discount: data.discount || 0,
+            additionalPrice: data.additionalPrice || 0,
             dueDate: data.dueDate || "",
             pppoeUsername: data.username || "",
             pppoePassword: data.password || "",
@@ -260,6 +263,7 @@ export default function SubscriptionFormModal({
         packageId: form.packageId,
         taxAmount: form.taxAmount,
         discount: form.discount,
+        additionalPrice: form.additionalPrice,
         dueDate: form.dueDate,
       };
 
@@ -548,8 +552,8 @@ export default function SubscriptionFormModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* TAX */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Tanggal Kontrak */}
               <div>
                 <label>Tanggal Kontrak</label>
                 <Input type="date" {...register("dueDate")} />
@@ -559,6 +563,7 @@ export default function SubscriptionFormModal({
                   </p>
                 )}
               </div>
+              {/* PPN */}
               <div>
                 <label>PPN (%)</label>
                 <Input
@@ -572,6 +577,10 @@ export default function SubscriptionFormModal({
                   </p>
                 )}
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Diskon */}
               <div>
                 <label>Diskon (Rp)</label>
                 <Input
@@ -582,6 +591,23 @@ export default function SubscriptionFormModal({
                 {errors.discount && (
                   <p className="text-sm text-red-500">
                     {errors.discount.message}
+                  </p>
+                )}
+              </div>
+              {/* Biaya Tambahan */}
+              <div>
+                <label>Biaya Tambahan (Rp)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  {...register("additionalPrice", {
+                    valueAsNumber: true,
+                    min: 0,
+                  })}
+                />
+                {errors.additionalPrice && (
+                  <p className="text-sm text-red-500">
+                    {errors.additionalPrice.message}
                   </p>
                 )}
               </div>

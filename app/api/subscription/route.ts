@@ -39,11 +39,16 @@ export async function POST(req: Request) {
       packageId,
       dueDate,
       discount = 0,
+      additionalPrice = 0,
       pppoeSecret,
     } = body;
     const sanitizedDiscount =
       typeof discount === "number" && Number.isFinite(discount)
         ? Math.max(Math.floor(discount), 0)
+        : 0;
+    const sanitizedAdditionalPrice =
+      typeof additionalPrice === "number" && Number.isFinite(additionalPrice)
+        ? Math.max(Math.floor(additionalPrice), 0)
         : 0;
     const newAddress = address as Address;
 
@@ -238,6 +243,7 @@ export async function POST(req: Request) {
         packageId,
         odpId,
         discount: sanitizedDiscount,
+        additionalPrice: sanitizedAdditionalPrice,
         userProfileId: profile.id,
       },
     });
@@ -262,6 +268,7 @@ export async function POST(req: Request) {
       packageName: pkg.name,
       taxAmount: 0,
       discountAmount: sanitizedDiscount,
+      additionalAmount: sanitizedAdditionalPrice,
       validPhoneNumber,
       subscriptionId: subs.id,
     });
@@ -323,6 +330,7 @@ export async function GET(req: NextRequest) {
           id: true,
           expiredAt: true,
           discount: true,
+          additionalPrice: true,
           createdAt: true,
           userProfile: {
             select: {
@@ -392,6 +400,7 @@ export async function GET(req: NextRequest) {
         packageName: s.package?.name || "",
         packagePrice: s.package?.price || 0,
         discount: s.discount || 0,
+        additionalPrice: s.additionalPrice || 0,
         status: s.active,
         remainingDays,
         expiredAt: s.expiredAt?.toISOString() || "",

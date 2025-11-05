@@ -129,23 +129,24 @@ model Package {
 }
 
 model Subscription {
-  id            String      @id @default(cuid())
-  number        String      @default("")
-  userProfile   UserProfile @relation(fields: [userProfileId], references: [id])
-  userProfileId String
-  odp           Odp         @relation(fields: [odpId], references: [id])
-  odpId         String
-  package       Package     @relation(fields: [packageId], references: [id])
-  packageId     String
-  active        Boolean     @default(false)
-  expiredAt     DateTime? // masa aktif langganan dinamis (akan)
-  dueDate       String
-  discount      Int         @default(0)
-  isAudited     Boolean     @default(false) // sudah di audit apa belum? jika sudah maka audit hari berikutnya tidak akan masuk task
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  payments      Payment[]
-  usersPPPOE    UserPPPOE[]
+  id              String      @id @default(cuid())
+  number          String      @default("")
+  userProfile     UserProfile @relation(fields: [userProfileId], references: [id])
+  userProfileId   String
+  odp             Odp         @relation(fields: [odpId], references: [id])
+  odpId           String
+  package         Package     @relation(fields: [packageId], references: [id])
+  packageId       String
+  active          Boolean     @default(false)
+  expiredAt       DateTime? // masa aktif langganan dinamis (akan)
+  dueDate         String
+  discount        Int         @default(0) // diskon dalam rupiah
+  additionalPrice Int         @default(0) // biaya tambahan dalam rupiah
+  isAudited       Boolean     @default(false) // sudah di audit apa belum? jika sudah maka audit hari berikutnya tidak akan masuk task
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  payments        Payment[]
+  usersPPPOE      UserPPPOE[]
 }
 
 model UserPPPOE {
@@ -158,23 +159,24 @@ model UserPPPOE {
 }
 
 model Payment {
-  id             String        @id @default(cuid())
-  number         String        @default("")
-  user           User?         @relation(fields: [userId], references: [id])
-  userId         String?
-  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  subscriptionId String?
-  amount         Int
-  discount       Int           @default(0)
-  tax            Float
-  status         PaymentStatus @default(PENDING)
-  paymentLink    String        @default("")
-  paymentMethod  String? // contoh: "midtrans", "manual"
-  transactionId  String? // ID dari Midtrans atau referensi manual
-  expiredAt      DateTime? // misal batas waktu bayar invoice midtrans
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  Cashflow       Cashflow[]
+  id              String        @id @default(cuid())
+  number          String        @default("")
+  user            User?         @relation(fields: [userId], references: [id])
+  userId          String?
+  subscription    Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId  String?
+  amount          Int
+  discount        Int           @default(0)
+  additionalPrice Int           @default(0) // biaya tambahan dalam rupiah
+  tax             Float
+  status          PaymentStatus @default(PENDING)
+  paymentLink     String        @default("")
+  paymentMethod   String? // contoh: "midtrans", "manual"
+  transactionId   String? // ID dari Midtrans atau referensi manual
+  expiredAt       DateTime? // misal batas waktu bayar invoice midtrans
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  Cashflow        Cashflow[]
 }
 
 model Cashflow {

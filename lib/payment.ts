@@ -2,10 +2,10 @@ import { createId } from "@paralleldrive/cuid2";
 import midtransClient from "midtrans-client";
 import { PaymentStatus } from "./generated/prisma";
 import { generatePaymentNumber } from "./numbering";
+import { calculatePaymentTotals } from "./paymentTotals";
 import { prisma } from "./prisma";
 import { runTriggers } from "./runTriggers";
 import { activateSubscription } from "./subscription";
-import { calculatePaymentTotals } from "./paymentTotals";
 
 interface IGetPaymentLink {
   id: string;
@@ -185,6 +185,8 @@ export const generateInvoiceForSubscription = async (
     data: {
       subscriptionId,
       amount: amount, // Ganti dengan jumlah yang sesuai
+      discount: 0,
+      additionalPrice: 0,
       expiredAt: new Date(new Date().setDate(new Date().getDate() + 1)), // Contoh: 1 hari dari sekarang
       status: "PENDING", // Atur status awal
       tax: 0,
@@ -216,6 +218,7 @@ export async function createPayment({
   amount,
   taxAmount,
   discountAmount = 0,
+  additionalAmount = 0,
   validPhoneNumber,
   customerName,
   email,
@@ -226,6 +229,7 @@ export async function createPayment({
   amount: number;
   taxAmount: number;
   discountAmount?: number;
+  additionalAmount?: number;
   validPhoneNumber: string;
   customerName: string;
   email: string;
@@ -239,6 +243,7 @@ export async function createPayment({
   const totals = calculatePaymentTotals({
     amount,
     discount: discountAmount,
+    additionalPrice: additionalAmount,
     taxPercent: taxAmount,
   });
 
@@ -270,6 +275,7 @@ export async function createPayment({
       id,
       amount: totals.baseAmount,
       discount: totals.discount,
+      additionalPrice: totals.additionalPrice,
       tax: totals.taxPercent,
       number,
       paymentLink,

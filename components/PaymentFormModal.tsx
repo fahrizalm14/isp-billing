@@ -2,13 +2,13 @@
 
 import SubscriptionSelectModal from "@/components/SubscriptionSelectModal";
 import { SwalToast } from "@/components/SweetAlert";
-import { calculatePaymentTotals } from "@/lib/paymentTotals";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { calculatePaymentTotals } from "@/lib/paymentTotals";
 import { useEffect, useState } from "react";
 
 interface PaymentFormModalProps {
@@ -22,8 +22,12 @@ interface PaymentForm {
   subscriptionId: string;
   amount: number;
   taxAmount: number;
-  discount: number;
   expiredAt?: string;
+}
+
+interface SubscriptionData {
+  discount: number;
+  additionalPrice: number;
 }
 
 export default function PaymentFormModal({
@@ -37,7 +41,6 @@ export default function PaymentFormModal({
     subscriptionId: "",
     amount: 0,
     taxAmount: 0,
-    discount: 0,
   });
 
   // UI state saja
@@ -46,14 +49,23 @@ export default function PaymentFormModal({
   const [packageName, setPackageName] = useState("");
   const [subscriptionModal, setSubscriptionModal] = useState(false);
 
+  // Data dari subscription
+  const [subscriptionData, setSubscriptionData] = useState<SubscriptionData>({
+    discount: 0,
+    additionalPrice: 0,
+  });
+
   const totals = calculatePaymentTotals({
     amount: form.amount,
-    discount: form.discount,
+    discount: subscriptionData.discount,
+    additionalPrice: subscriptionData.additionalPrice,
     taxPercent: form.taxAmount,
   });
   const taxInfo =
     totals.taxPercent > 0
-      ? ` (Pajak ${totals.taxPercent}% = Rp ${totals.taxValue.toLocaleString("id-ID")})`
+      ? ` (Pajak ${totals.taxPercent}% = Rp ${totals.taxValue.toLocaleString(
+          "id-ID"
+        )})`
       : "";
 
   useEffect(() => {
@@ -70,11 +82,14 @@ export default function PaymentFormModal({
       subscriptionId: "",
       amount: 0,
       taxAmount: 0,
-      discount: 0,
     });
     setSubscriptionNumber("");
     setCustomerName("");
     setPackageName("");
+    setSubscriptionData({
+      discount: 0,
+      additionalPrice: 0,
+    });
   };
 
   const fetchPayment = async () => {
@@ -89,13 +104,16 @@ export default function PaymentFormModal({
         subscriptionId: p.subscriptionId || "",
         amount: p.amount,
         taxAmount: p.taxAmount,
-        discount: p.discount ?? 0,
         expiredAt: p.expiredAt ? p.expiredAt.split("T")[0] : "",
       });
 
       setSubscriptionNumber(p.subscriptionNumber || "");
       setCustomerName(p.customer || "");
       setPackageName(p.packageName || "");
+      setSubscriptionData({
+        discount: p.discount ?? 0,
+        additionalPrice: p.additionalPrice ?? 0,
+      });
     } catch (error) {
       console.error(error);
       SwalToast.fire({ icon: "error", title: "Gagal memuat data pembayaran" });
@@ -207,31 +225,35 @@ export default function PaymentFormModal({
                 />
               </div>
 
-              {/* Discount */}
-              <div>
-                <label className="block text-sm font-medium">
-                  Diskon (Rp)
-                </label>
-                <input
-                  title="inputPaymentDiscount"
-                  type="number"
-                  value={form.discount}
-                  onChange={(e) => {
-                    const value = Number(e.target.value);
-                    setForm({
-                      ...form,
-                      discount: Number.isNaN(value) ? 0 : Math.max(value, 0),
-                    });
-                  }}
-                  className="w-full border rounded px-3 py-2"
-                  min={0}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Total setelah diskon & pajak: Rp {" "}
-                  {totals.total.toLocaleString("id-ID")}
-                  {taxInfo}
-                </p>
-              </div>
+              {/* Info Diskon & Biaya Tambahan dari Subscription */}
+              {form.subscriptionId && (
+                <div className="p-3 rounded-md border space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Diskon:</span>
+                    <span className="font-medium">
+                      Rp {subscriptionData.discount.toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Biaya Tambahan:</span>
+                    <span className="font-medium">
+                      Rp{" "}
+                      {subscriptionData.additionalPrice.toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t">
+                    <div className="flex justify-between text-sm font-medium">
+                      <span>Total Tagihan:</span>
+                      <span className="text-primary">
+                        Rp {totals.total.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                    {taxInfo && (
+                      <p className="text-xs text-gray-500 mt-1">{taxInfo}</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Tax */}
               <div>
@@ -285,11 +307,14 @@ export default function PaymentFormModal({
             ...form,
             subscriptionId: subs.id,
             amount: subs.packagePrice || 0,
-            discount: subs.discount ?? 0,
           });
           setSubscriptionNumber(subs.number);
           setCustomerName(subs.name || "");
           setPackageName(subs.packageName || "");
+          setSubscriptionData({
+            discount: subs.discount ?? 0,
+            additionalPrice: subs.additionalPrice ?? 0,
+          });
           setSubscriptionModal(false);
         }}
       />

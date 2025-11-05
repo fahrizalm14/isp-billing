@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
           number: true,
           amount: true,
           discount: true,
+          additionalPrice: true,
           tax: true,
           status: true,
           createdAt: true,
@@ -78,6 +79,7 @@ export async function GET(req: NextRequest) {
       const totals = calculatePaymentTotals({
         amount: p.amount,
         discount: p.discount ?? 0,
+        additionalPrice: p.additionalPrice ?? 0,
         taxPercent: p.tax ?? 0,
       });
 
@@ -88,6 +90,7 @@ export async function GET(req: NextRequest) {
         subscriptionNumber: p.subscription?.number || "-", // Subscription
         subtotal: totals.baseAmount,
         discount: totals.discount,
+        additionalPrice: totals.additionalPrice,
         tax: totals.taxPercent,
         taxValue: totals.taxValue,
         amount: totals.total, // Jumlah akhir (setelah diskon + pajak)
@@ -117,7 +120,7 @@ const PaymentSchema = z.object({
   amount: z.number().positive(),
   taxAmount: z.number().min(0),
   subscriptionId: z.string().min(1),
-  discount: z.number().min(0).default(0),
+  // discount dan additionalPrice otomatis diambil dari subscription
 });
 
 export async function POST(req: NextRequest) {
@@ -135,6 +138,8 @@ export async function POST(req: NextRequest) {
     const subscription = await prisma.subscription.findUnique({
       where: { id: parsed.data.subscriptionId },
       select: {
+        discount: true,
+        additionalPrice: true,
         package: {
           select: {
             name: true,
@@ -164,7 +169,8 @@ export async function POST(req: NextRequest) {
       packageId: subscription.package.id,
       packageName: subscription.package.name,
       taxAmount: parsed.data.taxAmount,
-      discountAmount: parsed.data.discount,
+      discountAmount: subscription.discount || 0,
+      additionalAmount: subscription.additionalPrice || 0,
       validPhoneNumber: subscription.userProfile.phone || "",
     });
 
