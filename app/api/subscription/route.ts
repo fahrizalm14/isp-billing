@@ -172,14 +172,6 @@ export async function POST(req: Request) {
           const validLocalAddress =
             localAddr && ipRegex.test(localAddr) ? localAddr : undefined;
 
-          console.log({
-            name: normalizedUsername,
-            password: normalizedPassword,
-            profile: pkg.profileName || "",
-            localAddress: validLocalAddress,
-            originalLocalAddress: pkg.localAddress,
-          });
-
           await createUserPPPOE(routerConfig, {
             name: normalizedUsername,
             password: normalizedPassword,

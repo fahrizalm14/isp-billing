@@ -1,7 +1,6 @@
 import { decrypt } from "@/lib/crypto";
 import {
   createUserPPPOE,
-  deleteUserPPPOE,
   getPPPOESecret,
   movePPPOEToProfile,
 } from "@/lib/mikrotik/pppoe";
@@ -40,15 +39,15 @@ export async function DELETE(
     }
 
     // hapus user ppoe
-    await deleteUserPPPOE(
-      {
-        host: subsToDelete.package.router.ipAddress,
-        password: decrypt(subsToDelete.package.router.apiPassword),
-        port: subsToDelete.package.router.port,
-        username: subsToDelete.package.router.apiUsername,
-      },
-      subsToDelete.usersPPPOE.length ? subsToDelete.usersPPPOE[0].username : ""
-    );
+    // await deleteUserPPPOE(
+    //   {
+    //     host: subsToDelete.package.router.ipAddress,
+    //     password: decrypt(subsToDelete.package.router.apiPassword),
+    //     port: subsToDelete.package.router.port,
+    //     username: subsToDelete.package.router.apiUsername,
+    //   },
+    //   subsToDelete.usersPPPOE.length ? subsToDelete.usersPPPOE[0].username : ""
+    // );
 
     await prisma.userPPPOE.deleteMany({ where: { subscriptionId: params.id } });
     await prisma.subscription.delete({ where: { id: params.id } });
@@ -385,16 +384,16 @@ export async function PUT(
         try {
           const routerConfig = ensureRouter();
 
-          if (currentPPPOE) {
-            try {
-              await deleteUserPPPOE(routerConfig, currentPPPOE.username);
-            } catch (err) {
-              console.warn(
-                `[PUT][SUBSCRIPTION][${id}] tidak dapat menghapus PPPoE lama`,
-                err
-              );
-            }
-          }
+          // if (currentPPPOE) {
+          //   try {
+          //     await deleteUserPPPOE(routerConfig, currentPPPOE.username);
+          //   } catch (err) {
+          //     console.warn(
+          //       `[PUT][SUBSCRIPTION][${id}] tidak dapat menghapus PPPoE lama`,
+          //       err
+          //     );
+          //   }
+          // }
 
           // ✅ Validasi local address - hanya kirim jika format IP valid
           const ipRegex = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;

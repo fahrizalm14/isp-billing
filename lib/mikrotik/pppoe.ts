@@ -82,9 +82,23 @@ export async function createUserPPPOE(
     localAddress?: string;
   }
 ) {
-  const { connection, close } = await createRouterOSConnection(config);
+  let connection: RouterOSConnection | null = null;
+  let close: (() => Promise<void>) | null = null;
 
   try {
+    ({ connection, close } = await createRouterOSConnection(config));
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error ?? "Unknown error");
+    console.log(`Gagal membuat user PPPoE: ${message}`);
+    throw new Error(`Gagal terhubung ke MikroTik: ${message}`);
+  }
+
+  try {
+    if (!connection || !close) {
+      throw new Error("Koneksi MikroTik tidak tersedia");
+    }
+
     // ✅ Cek apakah username sudah ada
     const existingSecret = await findSecretByName(connection, user.name);
     if (existingSecret) {
@@ -121,7 +135,9 @@ export async function createUserPPPOE(
       error instanceof Error ? error.message : String(error ?? "Unknown error");
     throw new Error(`Gagal membuat user PPPoE: ${message}`);
   } finally {
-    await close();
+    if (close) {
+      await close();
+    }
   }
 }
 
@@ -137,9 +153,22 @@ export async function deleteUserPPPOE(
   },
   username: string
 ) {
-  const { connection, close } = await createRouterOSConnection(config);
+  let connection: RouterOSConnection | null = null;
+  let close: (() => Promise<void>) | null = null;
 
   try {
+    ({ connection, close } = await createRouterOSConnection(config));
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error ?? "Unknown error");
+    throw new Error(`Gagal terhubung ke MikroTik: ${message}`);
+  }
+
+  try {
+    if (!connection || !close) {
+      throw new Error("Koneksi MikroTik tidak tersedia");
+    }
+
     const secret = await findSecretByName(connection, username);
     if (!secret) {
       throw new Error(`User PPPoE "${username}" tidak ditemukan`);
@@ -156,7 +185,9 @@ export async function deleteUserPPPOE(
       error instanceof Error ? error.message : String(error ?? "Unknown error");
     throw new Error(`Gagal menghapus user PPPoE: ${message}`);
   } finally {
-    await close();
+    if (close) {
+      await close();
+    }
   }
 }
 
