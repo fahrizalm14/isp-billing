@@ -630,6 +630,7 @@ export default function SubscriptionFormModal({
               </button>
             </div>
           </form>
+          <div className="mb-5"></div>
         </DialogContent>
       </Dialog>
 
