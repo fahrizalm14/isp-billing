@@ -128,10 +128,11 @@ export const getBandwidth = async ({
   });
 
   try {
-    const result = await executeCommand(connection, "/interface/monitor-traffic", [
-      `=interface=${params}`,
-      "=once=yes",
-    ]);
+    const result = await executeCommand(
+      connection,
+      "/interface/monitor-traffic",
+      [`=interface=${params}`, "=once=yes"]
+    );
 
     if (result.code !== 0) {
       return result;
@@ -254,20 +255,6 @@ const findField = (
   return key ? obj[key] : undefined;
 };
 
-const pickLastActive = (entry?: Record<string, string> | null) => {
-  if (!entry) return null;
-  const candidates = [
-    entry["uptime"],
-    entry["time"],
-    entry["login-time"],
-    entry["last-seen"],
-    entry["last-login"],
-    entry["connected"],
-    entry["session-time"],
-  ].filter(Boolean) as string[];
-  return candidates.length ? candidates[0] : null;
-};
-
 export const getSecretsStatus = async (connection: RouterOSConnection) => {
   const secretRes = await executeCommand(connection, "/ppp/secret/print");
   const activeRes = await executeCommand(connection, "/ppp/active/print");
@@ -275,7 +262,8 @@ export const getSecretsStatus = async (connection: RouterOSConnection) => {
   const secrets = secretRes.data.map(normalizeRecord);
   const actives = activeRes.data.map(normalizeRecord);
 
-  const activeMap = new Map<string, Record<string, string>>();
+  // Build a Set of active usernames untuk matching yang lebih akurat
+  const activeNames = new Set<string>();
   for (const active of actives) {
     const identity =
       findField(active, "name") ||
@@ -283,47 +271,37 @@ export const getSecretsStatus = async (connection: RouterOSConnection) => {
       findField(active, "username") ||
       "";
     if (identity) {
-      activeMap.set(identity, active);
+      activeNames.add(identity.toLowerCase().trim()); // normalize ke lowercase & trim
     }
   }
 
-  const detailed = secrets.map((secret) => {
+  // Deduplicate secrets berdasarkan name untuk menghindari dobel
+  const uniqueSecretsMap = new Map<string, Record<string, string>>();
+  for (const secret of secrets) {
     const username =
       findField(secret, "name") ||
       findField(secret, "user") ||
       findField(secret, "username") ||
       "";
-    const password =
-      findField(secret, "password") ||
-      findField(secret, "pass") ||
-      findField(secret, "secret") ||
-      "";
-    const profile = findField(secret, "profile") || "";
-    const service = findField(secret, "service") || "";
-    const lastLoggedOut =
-      findField(secret, "last-logged-out") ||
-      findField(secret, "last-logout") ||
-      "";
-    const activeEntry = username ? activeMap.get(username) : undefined;
-    const lastActive = pickLastActive(activeEntry);
+    const normalizedUsername = username.toLowerCase().trim();
 
-    return {
-      id: findField(secret, ".id"),
-      username,
-      password,
-      profile,
-      service,
-      lastLoggedOut: lastLoggedOut || null,
-      lastActive,
-      isActive: !!activeEntry,
-      raw: secret,
-    };
-  });
+    // Hanya simpan yang pertama kali muncul (avoid duplicates)
+    if (normalizedUsername && !uniqueSecretsMap.has(normalizedUsername)) {
+      uniqueSecretsMap.set(normalizedUsername, secret);
+    }
+  }
 
-  const active = detailed.filter((entry) => entry.isActive).map((entry) => entry.raw);
-  const inactive = detailed
-    .filter((entry) => !entry.isActive)
-    .map((entry) => entry.raw);
+  const active: Record<string, string>[] = [];
+  const inactive: Record<string, string>[] = [];
+
+  // Pisahkan berdasarkan status aktif/tidak
+  for (const [normalizedName, secret] of uniqueSecretsMap.entries()) {
+    if (activeNames.has(normalizedName)) {
+      active.push(secret);
+    } else {
+      inactive.push(secret);
+    }
+  }
 
   return { active, inactive };
 };
