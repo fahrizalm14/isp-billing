@@ -85,7 +85,7 @@ export const tesConnection = async ({
   );
 
   try {
-    await connection.write("/system/identity/print");
+    await connection.write(["/system/identity/print"]);
   } finally {
     await close();
   }

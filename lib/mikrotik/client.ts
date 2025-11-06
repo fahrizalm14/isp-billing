@@ -1,4 +1,4 @@
-import { RouterOSAPI } from "node-routeros";
+import { Routeros } from "routeros-node";
 import type { MikroTikConfig } from "./type";
 
 const DEFAULT_ROUTEROS_PORT = 8728;
@@ -10,25 +10,25 @@ const resolvePort = (port?: number) => {
   return port;
 };
 
-export type RouterOSConnection = RouterOSAPI;
+export type RouterOSConnection = Omit<Routeros, "connect">;
 
 export const createRouterOSConnection = async (
   config: MikroTikConfig,
   options: { timeout?: number } = {}
 ) => {
-  const client = new RouterOSAPI({
+  const client = new Routeros({
     host: config.host,
     user: config.username,
     password: config.password,
     port: resolvePort(config.port),
-    timeout: options.timeout ?? 10_000,
+    timeout: options.timeout ?? 10000,
   });
 
   const connection = await client.connect();
 
   const close = async () => {
     try {
-      await connection.close();
+      connection.destroy();
     } catch {
       // ignore close error to mirror old ssh.dispose() behaviour
     }
@@ -75,20 +75,17 @@ export const executeCommand = async (
   params: string[] = []
 ): Promise<RouterOSCommandResult> => {
   try {
-    const data = await connection.write(command, params);
+    // routeros-node menggunakan write() dengan array queries
+    // Format: [command, ...params]
+    const queries = [command, ...params];
+
+    const data = await connection.write(queries);
     const records = Array.isArray(data) ? data : [];
     const stdout = records.map(serializeRecord).join("\n");
     return { code: 0, stdout, stderr: "", data: records };
   } catch (error) {
-    // Handle RouterOS 7 !empty response (sukses tapi tidak ada data dikembalikan)
     const message =
       error instanceof Error ? error.message : String(error ?? "Unknown error");
-
-    // !empty adalah response sukses dari RouterOS, bukan error
-    if (message.includes("!empty") || message.includes("UNKNOWNREPLY")) {
-      return { code: 0, stdout: "", stderr: "", data: [] };
-    }
-
     return { code: 1, stdout: "", stderr: message, data: [] };
   }
 };
