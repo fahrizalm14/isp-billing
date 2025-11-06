@@ -5,6 +5,7 @@ import FormMessages from "@/components/app/messages/FormMessages";
 import ListMessages from "@/components/app/messages/ListMessages";
 import TemplateMessages from "@/components/app/messages/TemplateMessages";
 import TriggerManagement from "@/components/app/messages/TriggerManagement";
+import WhatsAppSettings from "@/components/app/messages/WhatsAppSettings";
 import Loader from "@/components/ui/custom/loader";
 import { IMessage, IMessageTemplate } from "@/types/helper";
 import { useEffect, useState } from "react";
@@ -37,6 +38,7 @@ export default function MessagingDashboard() {
 
           {/* ===== Right (narrow) column ===== */}
           <div className="md:col-span-4 space-y-6">
+            <WhatsAppSettings />
             <ConfigMessage />
             <TemplateMessages {...{ setTemplates, templates }} />
           </div>
