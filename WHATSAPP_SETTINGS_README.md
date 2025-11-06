@@ -2,11 +2,20 @@
 
 Komponen UI untuk mengelola koneksi WhatsApp untuk fitur broadcast dan notifikasi otomatis.
 
+## Konfigurasi
+
+Komponen ini **terintegrasi dengan WebsiteInfo** untuk mengambil konfigurasi:
+- **API URL**: Diambil dari field `apiUrl` di WebsiteInfo
+- **Secret Key**: Diambil dari field `apiSecret` di WebsiteInfo
+- **API Key**: Diambil/disimpan dari field `apiKey` di WebsiteInfo
+
+> ⚠️ **Penting**: Pastikan API URL dan Secret Key sudah dikonfigurasi di **Pengaturan API** terlebih dahulu sebelum menggunakan fitur WhatsApp.
+
 ## Fitur
 
 ### 1. Generate API Key
-- Input Secret Key untuk generate API Key baru
-- API Key disimpan di localStorage untuk penggunaan selanjutnya
+- Menggunakan Secret Key dari konfigurasi WebsiteInfo
+- API Key disimpan ke localStorage dan database (WebsiteInfo)
 - Menggunakan endpoint: `POST /api/v1/api-keys`
 
 ### 2. WhatsApp Connection Management
@@ -25,13 +34,17 @@ Komponen UI untuk mengelola koneksi WhatsApp untuk fitur broadcast dan notifikas
 
 ## Cara Penggunaan
 
-### 1. Setup Base URL (Optional)
-Masukkan URL server WhatsApp API. Default: `http://localhost:3000`
+### 1. Konfigurasi di Pengaturan API (Prerequisite)
+Sebelum menggunakan WhatsApp Settings, pastikan sudah mengisi:
+1. Buka **Pengaturan API** (ConfigMessage component)
+2. Isi **API URL** (contoh: `http://localhost:3000`)
+3. Isi **Secret** (API Secret dari WhatsApp server)
+4. Simpan konfigurasi
 
 ### 2. Generate API Key
-1. Masukkan Secret Key
-2. Klik tombol "Generate"
-3. API Key akan tersimpan otomatis
+1. Klik tombol "Generate Key" di WhatsApp Settings
+2. Sistem akan otomatis menggunakan Secret Key dari konfigurasi
+3. API Key akan tersimpan otomatis ke database dan localStorage
 
 ### 3. Connect WhatsApp
 1. Masukkan Display Name (optional)

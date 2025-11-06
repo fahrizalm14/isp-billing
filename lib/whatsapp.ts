@@ -3,24 +3,42 @@ import { prisma } from "./prisma";
 
 async function sendMessage(phone: string, message: string) {
   const config = await prisma.websiteInfo.findFirst();
-  if (!config?.apiKey || !config?.apiSecret || !config?.apiUrl) {
-    throw new Error("WebsiteInfo belum ada API Key/Secret");
+  if (!config?.apiKey || !config?.apiUrl) {
+    throw new Error("WebsiteInfo belum ada API Key/URL");
   }
 
-  const token = config.apiKey;
-  const secret = config.apiSecret;
+  const apiKey = config.apiKey;
+  const baseUrl = config.apiUrl;
 
-  const url = `${
-    config.apiUrl
-  }${token}.${secret}&phone=${phone}&message=${encodeURIComponent(message)}`;
+  // Pastikan nomor telepon dalam format yang benar (62xxx)
+  const formattedPhone = phone.startsWith("62")
+    ? phone
+    : `62${phone.replace(/^0/, "")}`;
 
-  const response = await fetch(url, { method: "GET" });
+  const url = `${baseUrl}/api/v1/whatsapp/message/${apiKey}/send`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      to: formattedPhone,
+      text: message,
+    }),
+  });
 
   if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
     throw new Error(
-      `Wablas request failed: ${response.status} ${response.statusText}`
+      `WhatsApp API request failed: ${response.status} ${
+        response.statusText
+      } - ${JSON.stringify(errorData)}`
     );
   }
+
+  const result = await response.json();
+  return result;
 }
 
 // helper delay

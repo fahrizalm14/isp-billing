@@ -68,6 +68,7 @@ const WhatsAppSettings = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [secretKey, setSecretKey] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
 
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -111,8 +112,15 @@ const WhatsAppSettings = () => {
     }
   }, [checkSessionStatus]);
 
-  // Fetch initial status on mount
+  // Load stored values on mount
   useEffect(() => {
+    // Load base URL
+    const storedBaseUrl = localStorage.getItem("whatsapp_base_url");
+    if (storedBaseUrl) {
+      setBaseUrl(storedBaseUrl);
+    }
+
+    // Load API key
     loadStoredApiKey();
   }, [loadStoredApiKey]);
 
@@ -286,16 +294,23 @@ const WhatsAppSettings = () => {
 
       const result = await res.json();
       if (result.status === "success") {
+        // Clear state
         setSessionStatus("LOGGED_OUT");
         setIsConnected(false);
         setQrCodeUrl("");
+        setApiKey("");
 
+        // Remove API key from localStorage
+        localStorage.removeItem("whatsapp_api_key");
+
+        // Close SSE connection
         if (eventSourceRef.current) {
           eventSourceRef.current.close();
         }
 
         SwalToast.fire({
           title: "Logout berhasil",
+          text: "API Key telah dihapus",
           icon: "success",
         });
       }
@@ -385,10 +400,11 @@ const WhatsAppSettings = () => {
             id="baseUrl"
             type="url"
             placeholder="http://localhost:3000"
-            defaultValue={localStorage.getItem("whatsapp_base_url") || ""}
-            onChange={(e) =>
-              localStorage.setItem("whatsapp_base_url", e.target.value)
-            }
+            value={baseUrl}
+            onChange={(e) => {
+              setBaseUrl(e.target.value);
+              localStorage.setItem("whatsapp_base_url", e.target.value);
+            }}
             disabled={loading}
           />
           <p className="text-xs text-muted-foreground">
