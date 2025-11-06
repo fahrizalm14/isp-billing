@@ -175,8 +175,8 @@ export default function Dashboard() {
           setSelectedInterface((curr) =>
             curr && json.interfaces.includes(curr) ? curr : json.interfaces[0]
           );
-        } else if (interfaces.length === 0) {
-          // jangan override jika sudah ada dari fetch sebelumnya
+        } else {
+          // reset jika tidak ada interfaces
           setInterfaces([]);
           setSelectedInterface("");
         }
@@ -194,7 +194,7 @@ export default function Dashboard() {
         setLoading(false);
       }
     },
-    [interfaces.length]
+    [] // Hapus dependency interfaces.length untuk menghindari double call
   );
 
   // fetch routers
