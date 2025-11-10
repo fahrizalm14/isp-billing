@@ -98,31 +98,35 @@ export const activateSubscription = async (
       profile: userPPPOE.profile,
     });
 
-    // buat user pppoe di mikrotik
-    console.log("🔵 [ACTIVATE] Creating PPPoE user in MikroTik...");
-    await createUserPPPOE(routerConfig, {
-      name: userPPPOE.name,
-      password: userPPPOE.password,
-      profile: userPPPOE.profile,
-      // localAddress: userPPPOE.localAddress,
-    });
-    console.log("✅ [ACTIVATE] PPPoE user created in MikroTik");
+    try {
+      // buat user pppoe di mikrotik
+      console.log("🔵 [ACTIVATE] Creating PPPoE user in MikroTik...");
+      await createUserPPPOE(routerConfig, {
+        name: userPPPOE.name,
+        password: userPPPOE.password,
+        profile: userPPPOE.profile,
+        // localAddress: userPPPOE.localAddress,
+      });
+      console.log("✅ [ACTIVATE] PPPoE user created in MikroTik");
 
-    // create table user pppoe
-    console.log("🔵 [ACTIVATE] Saving PPPoE user to database...");
-    await prisma.subscription.update({
-      data: {
-        active: true,
-        usersPPPOE: {
-          create: {
-            password: userPPPOE.password,
-            username: userPPPOE.name,
+      // create table user pppoe (tanpa update status, akan diupdate di akhir)
+      console.log("🔵 [ACTIVATE] Saving PPPoE user to database...");
+      await prisma.subscription.update({
+        data: {
+          usersPPPOE: {
+            create: {
+              password: userPPPOE.password,
+              username: userPPPOE.name,
+            },
           },
         },
-      },
-      where: { id: subscription.id || "" },
-    });
-    console.log("✅ [ACTIVATE] PPPoE user saved to database");
+        where: { id: subscription.id || "" },
+      });
+      console.log("✅ [ACTIVATE] PPPoE user saved to database");
+    } catch (error) {
+      console.error("❌ [ACTIVATE] Failed to create PPPoE user:", error);
+      throw error;
+    }
   } else {
     console.log("🔵 [ACTIVATE] PPPoE user exists, moving to active profile...");
 
@@ -143,12 +147,17 @@ export const activateSubscription = async (
       targetProfile,
     });
 
-    await movePPPOEToProfile(routerConfig, {
-      profile: targetProfile,
-      name: existingUser.username,
-    });
+    try {
+      await movePPPOEToProfile(routerConfig, {
+        profile: targetProfile,
+        name: existingUser.username,
+      });
 
-    console.log("✅ [ACTIVATE] PPPoE user moved to active profile");
+      console.log("✅ [ACTIVATE] PPPoE user moved to active profile");
+    } catch (error) {
+      console.error("❌ [ACTIVATE] Failed to move PPPoE profile:", error);
+      throw error;
+    }
   }
 
   // update status
@@ -179,15 +188,10 @@ export const deactivateSubscription = async (
     subscriptionId
   );
 
-  // update status
-  console.log("🔴 [DEACTIVATE] Updating subscription status to inactive...");
-  const subscription = await prisma.subscription.update({
+  // Fetch subscription first untuk validasi
+  console.log("🔴 [DEACTIVATE] Fetching subscription data...");
+  const subscription = await prisma.subscription.findUnique({
     where: { id: subscriptionId },
-    data: {
-      active: false,
-      isAudited,
-      expiredAt: new Date(), // tanggal expiredAt jadi tanggal sekarang
-    },
     include: {
       package: {
         include: {
@@ -199,9 +203,15 @@ export const deactivateSubscription = async (
     },
   });
 
-  console.log("✅ [DEACTIVATE] Subscription status updated:", {
+  if (!subscription) {
+    console.error("❌ [DEACTIVATE] Subscription not found:", subscriptionId);
+    throw new Error("Langganan tidak ditemukan!");
+  }
+
+  console.log("✅ [DEACTIVATE] Subscription found:", {
     number: subscription.number,
     packageName: subscription.package.name,
+    currentStatus: subscription.active ? "active" : "inactive",
     hasRouter: !!subscription.package.router,
     hasPPPOE: subscription.usersPPPOE.length > 0,
   });
@@ -242,14 +252,34 @@ export const deactivateSubscription = async (
     targetProfile: "isolir",
   });
 
-  await movePPPOEToProfile(routerConfig, {
-    profile: "isolir",
-    name: existingUser.username,
-  });
+  try {
+    await movePPPOEToProfile(routerConfig, {
+      profile: "isolir",
+      name: existingUser.username,
+    });
 
-  console.log("✅ [DEACTIVATE] PPPoE user moved to isolir profile");
+    console.log("✅ [DEACTIVATE] PPPoE user moved to isolir profile");
 
-  console.log("🔴 [DEACTIVATE] Running deactivation triggers...");
-  await runTriggers("DEACTIVATE_SUBSCRIPTION", subscriptionId);
-  console.log("✅ [DEACTIVATE] Deactivation completed successfully");
+    // Update status SETELAH berhasil move profile
+    console.log("🔴 [DEACTIVATE] Updating subscription status to inactive...");
+    await prisma.subscription.update({
+      where: { id: subscriptionId },
+      data: {
+        active: false,
+        isAudited,
+        expiredAt: new Date(),
+      },
+    });
+    console.log("✅ [DEACTIVATE] Subscription status updated");
+
+    console.log("🔴 [DEACTIVATE] Running deactivation triggers...");
+    await runTriggers("DEACTIVATE_SUBSCRIPTION", subscriptionId);
+    console.log("✅ [DEACTIVATE] Deactivation completed successfully");
+  } catch (error) {
+    console.error("❌ [DEACTIVATE] Failed to move profile:", error);
+    console.error(
+      "⚠️ [DEACTIVATE] Subscription status NOT changed due to error"
+    );
+    throw error;
+  }
 };

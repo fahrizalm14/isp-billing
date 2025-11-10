@@ -132,19 +132,41 @@ export async function createUserPPPOE(
       throw new Error("Koneksi MikroTik tidak tersedia");
     }
 
+    console.log("🔧 [CREATE_USER] Creating new PPPoE user:", {
+      name: user.name,
+      profile: user.profile,
+    });
+
     // ✅ Cek apakah username sudah ada
+    console.log("🔧 [CREATE_USER] Checking if username already exists...");
     const existingSecret = await findSecretByName(connection, user.name);
     if (existingSecret) {
+      console.error("❌ [CREATE_USER] Username already exists:", user.name);
       throw new Error(
         `Username PPPoE "${user.name}" sudah digunakan di MikroTik. Silakan gunakan username lain.`
       );
     }
+    console.log("✅ [CREATE_USER] Username available");
+
+    // ✅ Resolve profile name untuk memastikan profile ada dan nama benar
+    console.log("🔧 [CREATE_USER] Resolving profile name:", user.profile);
+    const resolvedProfile = await resolveProfileName(connection, user.profile);
+    if (!resolvedProfile) {
+      console.error(
+        "❌ [CREATE_USER] Profile not found in MikroTik:",
+        user.profile
+      );
+      throw new Error(
+        `Profil PPPoE "${user.profile}" tidak ditemukan di MikroTik. Pastikan profile sudah dibuat di MikroTik.`
+      );
+    }
+    console.log("✅ [CREATE_USER] Profile resolved:", resolvedProfile);
 
     const params = [
       `=name=${user.name}`,
       `=password=${user.password}`,
       `=service=pppoe`,
-      `=profile=${user.profile}`,
+      `=profile=${resolvedProfile}`,
     ];
 
     // ✅ Hanya set local-address jika berupa IP address valid (bukan nama pool)
@@ -153,21 +175,31 @@ export async function createUserPPPOE(
       const ipRegex = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;
       if (ipRegex.test(user.localAddress.trim())) {
         params.push(`=local-address=${user.localAddress}`);
+        console.log("✅ [CREATE_USER] Local address added:", user.localAddress);
       } else {
         console.log(
-          `⚠️ Skipping local-address "${user.localAddress}" (bukan IP valid, pool akan digunakan dari profile)`
+          `⚠️ [CREATE_USER] Skipping local-address "${user.localAddress}" (bukan IP valid, pool akan digunakan dari profile)`
         );
       }
     }
+
+    console.log("🔧 [CREATE_USER] Executing add command with params:", params);
 
     // Gunakan executeCommand untuk menangani response dengan benar di RouterOS 7
     const result = await executeCommand(connection, "/ppp/secret/add", params);
 
     if (result.code !== 0) {
+      console.error("❌ [CREATE_USER] Failed to create secret:", {
+        code: result.code,
+        stderr: result.stderr,
+        stdout: result.stdout,
+      });
       throw new Error(result.stderr || "Gagal membuat PPPoE secret");
     }
 
-    console.log(`✅ Berhasil membuat PPPoE secret baru: ${user.name}`);
+    console.log(
+      `✅ [CREATE_USER] Successfully created PPPoE secret: ${user.name} with profile: ${resolvedProfile}`
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : String(error ?? "Unknown error");
