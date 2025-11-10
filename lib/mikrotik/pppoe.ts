@@ -14,21 +14,37 @@ const findSecretByName = async (
   connection: RouterOSConnection,
   username: string
 ) => {
+  console.log("🔍 [FIND_SECRET] Searching for PPPoE secret:", username);
+
   const queries = [username];
   const profileKey = toProfileKey(username);
   if (profileKey !== username) {
     queries.push(profileKey);
   }
 
+  console.log("🔍 [FIND_SECRET] Query variations:", queries);
+
   for (const query of queries) {
+    console.log(`🔍 [FIND_SECRET] Trying query: ${query}`);
+    const startQuery = Date.now();
     const result = await executeCommand(connection, "/ppp/secret/print", [
       `?name=${query}`,
     ]);
+    console.log(
+      `🔍 [FIND_SECRET] Query completed (${Date.now() - startQuery}ms):`,
+      {
+        code: result.code,
+        found: result.data.length > 0,
+      }
+    );
+
     if (result.code === 0 && result.data.length) {
+      console.log("✅ [FIND_SECRET] Secret found:", result.data[0]);
       return result.data[0];
     }
   }
 
+  console.log("❌ [FIND_SECRET] Secret not found for any query variation");
   return undefined;
 };
 
@@ -36,8 +52,11 @@ const resolveProfileName = async (
   connection: RouterOSConnection,
   profile: string
 ) => {
+  console.log("🔍 [RESOLVE_PROFILE] Resolving profile name:", profile);
+
   const normalized = (profile || "").trim();
   if (!normalized) {
+    console.log("❌ [RESOLVE_PROFILE] Empty profile name provided");
     return undefined;
   }
 
@@ -51,17 +70,31 @@ const resolveProfileName = async (
     candidates.push(lower);
   }
 
+  console.log("🔍 [RESOLVE_PROFILE] Profile name variations:", candidates);
+
   for (const candidate of candidates) {
+    console.log(`🔍 [RESOLVE_PROFILE] Trying candidate: ${candidate}`);
+    const startQuery = Date.now();
     const result = await executeCommand(connection, "/ppp/profile/print", [
       `?name=${candidate}`,
     ]);
+    console.log(
+      `🔍 [RESOLVE_PROFILE] Query completed (${Date.now() - startQuery}ms):`,
+      {
+        code: result.code,
+        found: result.data.length > 0,
+      }
+    );
+
     if (result.code === 0 && result.data.length > 0) {
       const record = result.data[0];
       const name = toStringValue(record["name"]);
+      console.log("✅ [RESOLVE_PROFILE] Profile found:", name || candidate);
       return name || candidate;
     }
   }
 
+  console.log("❌ [RESOLVE_PROFILE] Profile not found for any variation");
   return undefined;
 };
 
@@ -333,57 +366,122 @@ export async function movePPPOEToProfile(
     profile: string;
   }
 ) {
+  console.log("🔧 [MOVE_PROFILE] Starting profile move operation:", {
+    username: user.name,
+    targetProfile: user.profile,
+    router: config.host,
+    port: config.port,
+  });
+
   let connection: RouterOSConnection | null = null;
   let close: (() => Promise<void>) | null = null;
 
   try {
+    console.log("🔧 [MOVE_PROFILE] Connecting to MikroTik...");
+    const startConnect = Date.now();
     ({ connection, close } = await createRouterOSConnection(config));
+    console.log(
+      `✅ [MOVE_PROFILE] Connected to MikroTik (${Date.now() - startConnect}ms)`
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : String(error ?? "Unknown error");
+    console.error("❌ [MOVE_PROFILE] Connection failed:", message);
     throw new Error(`Gagal terhubung ke MikroTik: ${message}`);
   }
 
   try {
     if (!connection || !close) {
+      console.error(
+        "❌ [MOVE_PROFILE] Connection or close function not available"
+      );
       throw new Error("Koneksi MikroTik tidak tersedia");
     }
 
+    console.log("🔧 [MOVE_PROFILE] Finding PPPoE secret by username...");
+    const startFind = Date.now();
     const secret = await findSecretByName(connection, user.name);
+    console.log(
+      `✅ [MOVE_PROFILE] Secret lookup completed (${Date.now() - startFind}ms)`
+    );
+
     if (!secret) {
+      console.error("❌ [MOVE_PROFILE] PPPoE user not found:", user.name);
       throw new Error(`User PPPoE "${user.name}" tidak ditemukan`);
     }
 
     const identifier =
       toStringValue(secret[".id"]) || toStringValue(secret["name"]);
+    const currentProfile = toStringValue(secret["profile"]);
 
+    console.log("✅ [MOVE_PROFILE] PPPoE user found:", {
+      id: identifier,
+      username: user.name,
+      currentProfile,
+    });
+
+    console.log("🔧 [MOVE_PROFILE] Resolving target profile name...");
+    const startResolve = Date.now();
     const targetProfile = await resolveProfileName(connection, user.profile);
+    console.log(
+      `✅ [MOVE_PROFILE] Profile resolution completed (${
+        Date.now() - startResolve
+      }ms)`
+    );
+
     if (!targetProfile) {
+      console.error(
+        "❌ [MOVE_PROFILE] Target profile not found:",
+        user.profile
+      );
       throw new Error(
         `Profil PPPoE "${user.profile}" tidak ditemukan di MikroTik`
       );
     }
 
+    console.log("✅ [MOVE_PROFILE] Target profile resolved:", targetProfile);
+
+    // Check if already in target profile
+    if (currentProfile === targetProfile) {
+      console.log(
+        "ℹ️ [MOVE_PROFILE] User already in target profile, skipping update"
+      );
+      return;
+    }
+
     // RouterOS 7 lebih baik menggunakan numbers parameter untuk set command
+    console.log("🔧 [MOVE_PROFILE] Executing profile change command...");
+    const startUpdate = Date.now();
     const result = await executeCommand(connection, "/ppp/secret/set", [
       `=numbers=${identifier}`,
       `=profile=${targetProfile}`,
     ]);
+    console.log(
+      `✅ [MOVE_PROFILE] Command executed (${Date.now() - startUpdate}ms)`
+    );
 
     if (result.code !== 0) {
+      console.error("❌ [MOVE_PROFILE] Command failed:", {
+        code: result.code,
+        stderr: result.stderr,
+        stdout: result.stdout,
+      });
       throw new Error(result.stderr || "Gagal mengupdate PPPoE secret");
     }
 
     console.log(
-      `✅ Berhasil memindahkan user ${user.name} ke profile ${targetProfile}`
+      `✅ [MOVE_PROFILE] Successfully moved user ${user.name} from "${currentProfile}" to "${targetProfile}"`
     );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : String(error ?? "Unknown error");
+    console.error("❌ [MOVE_PROFILE] Operation failed:", message);
     throw new Error(`Gagal memindahkan user PPPoE: ${message}`);
   } finally {
     if (close) {
+      console.log("🔧 [MOVE_PROFILE] Closing MikroTik connection...");
       await close();
+      console.log("✅ [MOVE_PROFILE] Connection closed");
     }
   }
 }
