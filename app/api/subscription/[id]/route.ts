@@ -350,9 +350,9 @@ export async function PUT(
             });
           }
 
-          if (updatedSubscription.package?.profileName) {
+          if (updatedSubscription.package?.name) {
             await movePPPOEToProfile(routerConfig, {
-              profile: updatedSubscription.package.profileName,
+              profile: updatedSubscription.package.name,
               name: secretDetail.username,
             });
           }
@@ -471,7 +471,7 @@ export async function PUT(
             port: newRouter.port,
           },
           {
-            profile: finalSubscription.package.profileName,
+            profile: finalSubscription.package.name,
             name: userPPPOE.username,
           }
         );

@@ -175,7 +175,7 @@ export async function POST(req: Request) {
           await createUserPPPOE(routerConfig, {
             name: normalizedUsername,
             password: normalizedPassword,
-            profile: pkg.profileName || "",
+            profile: pkg.name || "",
             localAddress: validLocalAddress,
           });
         } catch (error) {
