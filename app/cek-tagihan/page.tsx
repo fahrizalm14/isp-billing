@@ -3,8 +3,15 @@
 import { SwalToast } from "@/components/SweetAlert";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { CheckCircle, Info } from "lucide-react";
+import { CheckCircle, Info, Receipt } from "lucide-react";
 import { useState } from "react";
 
 interface TagihanData {
@@ -13,6 +20,14 @@ interface TagihanData {
   amount: number;
   month: string;
   paymentLink?: string;
+}
+
+interface PaymentHistory {
+  id: string;
+  amount: number;
+  updatedAt: string;
+  paymentMethod: string | null;
+  number: string;
 }
 
 type TagihanState =
@@ -24,6 +39,7 @@ type TagihanState =
 export default function CekTagihanPage() {
   const [subsId, setSubsId] = useState("");
   const [tagihan, setTagihan] = useState<TagihanState>({ status: "idle" });
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
 
   const handleCekTagihan = async () => {
     if (!subsId) {
@@ -35,18 +51,30 @@ export default function CekTagihanPage() {
     }
 
     setTagihan({ status: "loading" });
-    try {
-      const res = await fetch(`/api/payment/bill/${subsId}`);
-      const data = await res.json();
 
-      if (data.error) {
+    try {
+      // Fetch tagihan dan riwayat pembayaran secara parallel
+      const [tagihanRes, historyRes] = await Promise.all([
+        fetch(`/api/payment/bill/${subsId}`),
+        fetch(`/api/payment/history/${subsId}`),
+      ]);
+
+      const tagihanData = await tagihanRes.json();
+      const historyData = await historyRes.json();
+
+      if (tagihanData.error) {
         SwalToast.fire({
           icon: "error",
-          title: data.error,
+          title: tagihanData.error,
         });
         setTagihan({ status: "none" });
       } else {
-        setTagihan({ status: "found", data: data.data });
+        setTagihan({ status: "found", data: tagihanData.data });
+      }
+
+      // Set riwayat pembayaran jika ada
+      if (!historyData.error && historyData.data) {
+        setPaymentHistory(historyData.data);
       }
     } catch (error) {
       console.error(error);
@@ -139,6 +167,59 @@ export default function CekTagihanPage() {
               </AlertDescription>
             </div>
           </Alert>
+        )}
+
+        {/* Riwayat Pembayaran */}
+        {paymentHistory.length > 0 && (
+          <Card className="mt-6 border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <Receipt className="w-5 h-5" />
+                Riwayat Pembayaran
+              </CardTitle>
+              <CardDescription className="text-muted-foreground">
+                5 Pembayaran terakhir Anda
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {paymentHistory.map((payment) => (
+                  <div
+                    key={payment.id}
+                    className="flex justify-between items-start p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <p className="font-semibold text-foreground">
+                        {payment.number || "Invoice"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(payment.updatedAt).toLocaleDateString(
+                          "id-ID",
+                          {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          }
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {payment.paymentMethod || "Manual"}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-primary">
+                        Rp {Intl.NumberFormat("id-ID").format(payment.amount)}
+                      </p>
+                      <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-500 mt-1">
+                        <CheckCircle className="w-3 h-3" />
+                        Lunas
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
 
