@@ -19,7 +19,7 @@ import {
   Receipt,
   ShieldCheck,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 interface TagihanData {
   customer: string;
@@ -69,6 +69,13 @@ export default function CekTagihanPage() {
   const [tagihan, setTagihan] = useState<TagihanState>({ status: "idle" });
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
   const [bandwidth, setBandwidth] = useState<BandwidthUsage | null>(null);
+  const [bandwidthStatus, setBandwidthStatus] =
+    useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [hasChecked, setHasChecked] = useState(false);
+
+  useEffect(() => {
+    document.title = "Cek Tagihan Internet | ISP Billing";
+  }, []);
 
   const heroHighlights = useMemo(
     () => [
@@ -96,6 +103,13 @@ export default function CekTagihanPage() {
     []
   );
 
+  const defaultBandwidth: BandwidthUsage = {
+    isOnline: false,
+    bytesIn: 0,
+    bytesOut: 0,
+    totalBytes: 0,
+  };
+
   const handleCekTagihan = async () => {
     if (!subsId) {
       SwalToast.fire({
@@ -106,6 +120,9 @@ export default function CekTagihanPage() {
     }
 
     setTagihan({ status: "loading" });
+    setBandwidth(null);
+    setBandwidthStatus("loading");
+    setHasChecked(true);
 
     try {
       // Fetch tagihan, riwayat pembayaran, dan bandwidth usage secara parallel
@@ -137,6 +154,10 @@ export default function CekTagihanPage() {
       // Set bandwidth usage jika ada
       if (!bandwidthData.error && bandwidthData.data) {
         setBandwidth(bandwidthData.data);
+        setBandwidthStatus("ready");
+      } else {
+        setBandwidth(defaultBandwidth);
+        setBandwidthStatus("error");
       }
     } catch (error) {
       console.error(error);
@@ -145,6 +166,8 @@ export default function CekTagihanPage() {
         title: "Terjadi kesalahan saat cek tagihan",
       });
       setTagihan({ status: "idle" });
+      setBandwidth(defaultBandwidth);
+      setBandwidthStatus("error");
     }
   };
 
@@ -161,7 +184,7 @@ export default function CekTagihanPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-primary/15 via-background to-background">
+    <div className="relative min-h-screen overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-primary/15 via-background to-background">
       <div className="pointer-events-none absolute inset-0 opacity-50">
         <div className="absolute -top-24 right-10 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
         <div className="absolute bottom-0 left-10 h-80 w-80 rounded-full bg-secondary/20 blur-[120px]" />
@@ -285,10 +308,10 @@ export default function CekTagihanPage() {
           </Card>
         </div>
 
-        {(bandwidth || paymentHistory.length > 0) && (
+        {(hasChecked || paymentHistory.length > 0) && (
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Bandwidth Usage */}
-            {bandwidth && (
+            {hasChecked && (
               <Card className="border border-border/70 bg-background/90 backdrop-blur">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-foreground">
@@ -296,59 +319,81 @@ export default function CekTagihanPage() {
                     Pemakaian Bandwidth
                   </CardTitle>
                   <CardDescription className="text-muted-foreground">
-                    {bandwidth.isOnline
+                    {bandwidthStatus === "loading"
+                      ? "Sedang mengambil data dari router..."
+                      : bandwidth && bandwidth.isOnline
                       ? "Sedang online, data diperbarui otomatis."
                       : "Status offline, menampilkan data sesi terakhir."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {bandwidth.isOnline && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-muted-foreground">
-                          Tersambung selama {bandwidth.uptime}
-                        </span>
-                      </div>
-                    )}
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Download
-                        </p>
-                        <p className="mt-2 text-2xl font-bold text-foreground">
-                          {formatBytes(bandwidth.bytesIn)}
-                        </p>
-                        <span className="text-xs text-muted-foreground">
-                          Data diterima
-                        </span>
-                      </div>
-                      <div className="rounded-2xl border border-secondary/20 bg-secondary/5 p-4">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Upload
-                        </p>
-                        <p className="mt-2 text-2xl font-bold text-foreground">
-                          {formatBytes(bandwidth.bytesOut)}
-                        </p>
-                        <span className="text-xs text-muted-foreground">
-                          Data dikirim
-                        </span>
-                      </div>
+                  {bandwidthStatus === "loading" && (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((item) => (
+                        <div
+                          key={item}
+                          className="h-16 animate-pulse rounded-2xl bg-muted/60"
+                        />
+                      ))}
                     </div>
-                    <div className="rounded-2xl border border-accent/30 bg-accent/10 p-4">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Total Pemakaian
-                      </p>
-                      <p className="mt-2 text-3xl font-bold text-accent-foreground">
-                        {formatBytes(bandwidth.totalBytes)}
-                      </p>
-                      {bandwidth.address && (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          IP Address: {bandwidth.address}
+                  )}
+                  {bandwidthStatus !== "loading" && (
+                    <div className="space-y-4">
+                      {bandwidth && bandwidth.isOnline && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                          <span className="text-muted-foreground">
+                            Tersambung selama {bandwidth.uptime}
+                          </span>
+                        </div>
+                      )}
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Download
+                          </p>
+                          <p className="mt-2 text-2xl font-bold text-foreground">
+                            {formatBytes((bandwidth || defaultBandwidth).bytesIn)}
+                          </p>
+                          <span className="text-xs text-muted-foreground">
+                            Data diterima
+                          </span>
+                        </div>
+                        <div className="rounded-2xl border border-secondary/20 bg-secondary/5 p-4">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Upload
+                          </p>
+                          <p className="mt-2 text-2xl font-bold text-foreground">
+                            {formatBytes((bandwidth || defaultBandwidth).bytesOut)}
+                          </p>
+                          <span className="text-xs text-muted-foreground">
+                            Data dikirim
+                          </span>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-accent/30 bg-accent/10 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                          Total Pemakaian
+                        </p>
+                        <p className="mt-2 text-3xl font-bold text-accent-foreground">
+                          {formatBytes(
+                            (bandwidth || defaultBandwidth).totalBytes
+                          )}
+                        </p>
+                        {bandwidth?.address && (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            IP Address: {bandwidth.address}
+                          </p>
+                        )}
+                      </div>
+                      {bandwidthStatus === "error" && (
+                        <p className="text-xs text-destructive">
+                          Gagal memuat data bandwidth. Coba cek kembali beberapa
+                          saat lagi.
                         </p>
                       )}
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             )}

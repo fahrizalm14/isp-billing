@@ -20,7 +20,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={karla.className + " h-screen overflow-hidden"}>
+      <body className={`${karla.className} min-h-screen bg-background`}>
         <ThemeProvider
           themes={[
             "dark",
