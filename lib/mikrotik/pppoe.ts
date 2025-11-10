@@ -72,8 +72,9 @@ const resolveProfileName = async (
 
   console.log("🔍 [RESOLVE_PROFILE] Profile name variations:", candidates);
 
+  // Try exact match first with each candidate
   for (const candidate of candidates) {
-    console.log(`🔍 [RESOLVE_PROFILE] Trying candidate: ${candidate}`);
+    console.log(`🔍 [RESOLVE_PROFILE] Trying exact match: ${candidate}`);
     const startQuery = Date.now();
     const result = await executeCommand(connection, "/ppp/profile/print", [
       `?name=${candidate}`,
@@ -89,12 +90,66 @@ const resolveProfileName = async (
     if (result.code === 0 && result.data.length > 0) {
       const record = result.data[0];
       const name = toStringValue(record["name"]);
-      console.log("✅ [RESOLVE_PROFILE] Profile found:", name || candidate);
+      console.log(
+        "✅ [RESOLVE_PROFILE] Profile found (exact match):",
+        name || candidate
+      );
       return name || candidate;
     }
   }
 
+  // If exact match fails, get all profiles and do case-insensitive search
+  console.log(
+    "🔍 [RESOLVE_PROFILE] Exact match failed, searching all profiles..."
+  );
+  const allProfilesResult = await executeCommand(
+    connection,
+    "/ppp/profile/print",
+    []
+  );
+
+  if (allProfilesResult.code === 0 && allProfilesResult.data.length > 0) {
+    console.log(
+      `🔍 [RESOLVE_PROFILE] Found ${allProfilesResult.data.length} profiles in MikroTik`
+    );
+
+    const normalizedSearch = normalized.toLowerCase();
+
+    // Log all available profiles for debugging
+    const availableProfiles = allProfilesResult.data.map((record) =>
+      toStringValue(record["name"])
+    );
+    console.log("🔍 [RESOLVE_PROFILE] Available profiles:", availableProfiles);
+
+    // Try case-insensitive match
+    for (const record of allProfilesResult.data) {
+      const profileName = toStringValue(record["name"]);
+      if (profileName.toLowerCase() === normalizedSearch) {
+        console.log(
+          "✅ [RESOLVE_PROFILE] Profile found (case-insensitive):",
+          profileName
+        );
+        return profileName;
+      }
+    }
+
+    // Try partial match (contains)
+    for (const record of allProfilesResult.data) {
+      const profileName = toStringValue(record["name"]);
+      if (profileName.toLowerCase().includes(normalizedSearch)) {
+        console.log(
+          "✅ [RESOLVE_PROFILE] Profile found (partial match):",
+          profileName
+        );
+        return profileName;
+      }
+    }
+  }
+
   console.log("❌ [RESOLVE_PROFILE] Profile not found for any variation");
+  console.log(
+    "💡 [RESOLVE_PROFILE] Tip: Check profile name spelling or create the profile in MikroTik first"
+  );
   return undefined;
 };
 
@@ -156,9 +211,49 @@ export async function createUserPPPOE(
         "❌ [CREATE_USER] Profile not found in MikroTik:",
         user.profile
       );
-      throw new Error(
-        `Profil PPPoE "${user.profile}" tidak ditemukan di MikroTik. Pastikan profile sudah dibuat di MikroTik.`
+
+      // Get available profiles to show in error message
+      const allProfilesResult = await executeCommand(
+        connection,
+        "/ppp/profile/print",
+        []
       );
+
+      let errorMessage = `Profil PPPoE "${user.profile}" tidak ditemukan di MikroTik.`;
+
+      if (allProfilesResult.code === 0 && allProfilesResult.data.length > 0) {
+        const availableProfiles = allProfilesResult.data
+          .map((record) => toStringValue(record["name"]))
+          .filter(
+            (name) =>
+              name && name !== "default" && name !== "default-encryption"
+          );
+
+        if (availableProfiles.length > 0) {
+          // Find similar profiles (case-insensitive contains)
+          const searchLower = user.profile.toLowerCase();
+          const similarProfiles = availableProfiles.filter(
+            (p) =>
+              p.toLowerCase().includes(searchLower) ||
+              searchLower.includes(p.toLowerCase())
+          );
+
+          if (similarProfiles.length > 0) {
+            errorMessage += `\n\n❓ Mungkin maksudnya salah satu ini?\n${similarProfiles
+              .map((p) => `  - ${p}`)
+              .join("\n")}`;
+          }
+
+          errorMessage += `\n\n📋 Semua profile yang tersedia:\n${availableProfiles
+            .map((p) => `  - ${p}`)
+            .join("\n")}`;
+          errorMessage += `\n\n💡 Tips: Salin nama profile yang benar dari list di atas dan update di master paket.`;
+        }
+      } else {
+        errorMessage += ` Pastikan profile sudah dibuat di MikroTik dengan command:\n/ppp profile add name="${user.profile}" ...`;
+      }
+
+      throw new Error(errorMessage);
     }
     console.log("✅ [CREATE_USER] Profile resolved:", resolvedProfile);
 
