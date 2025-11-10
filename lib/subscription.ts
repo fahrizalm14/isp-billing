@@ -31,9 +31,30 @@ export const activateSubscription = async (
 
   if (!subscription) throw new Error("Langganan tidak ditemukan!");
 
+  // Validasi router configuration
+  if (!subscription.package.router) {
+    throw new Error("Router tidak ditemukan untuk paket ini");
+  }
+
+  if (!subscription.package.router.ipAddress) {
+    throw new Error("IP Address router tidak valid");
+  }
+
+  const routerConfig = {
+    host: subscription.package.router.ipAddress,
+    username: subscription.package.router.apiUsername || "",
+    password: decrypt(subscription.package.router.apiPassword || ""),
+    port: Number(subscription.package.router.port) || 8728,
+  };
+
   // jika tidak ada user PPPOE maka buat baru
   if (!subscription.usersPPPOE.length) {
     const web = await prisma.websiteInfo.findFirst();
+
+    if (!subscription.package.profileName) {
+      throw new Error("Profile MikroTik untuk paket tidak ditemukan");
+    }
+
     // generate user
     const userPPPOE = {
       name: subscription.number,
@@ -41,25 +62,18 @@ export const activateSubscription = async (
         (web?.alias || "pppoe").replace(/[^a-zA-Z0-9]/g, "").toLowerCase(),
         5
       ),
-      profile: subscription?.package.profileName || "",
+      profile: subscription.package.profileName,
       localAddress: subscription.package.localAddress,
     };
 
     // buat user pppoe di mikrotik
-    await createUserPPPOE(
-      {
-        host: subscription?.package.router.ipAddress || "",
-        username: subscription?.package.router.apiUsername || "",
-        password: decrypt(subscription?.package.router.apiPassword || ""),
-        port: Number(subscription?.package.router.port) || 22,
-      },
-      {
-        name: userPPPOE.name,
-        password: userPPPOE.password,
-        profile: userPPPOE.profile,
-        // localAddress: userPPPOE.localAddress,
-      }
-    );
+    await createUserPPPOE(routerConfig, {
+      name: userPPPOE.name,
+      password: userPPPOE.password,
+      profile: userPPPOE.profile,
+      // localAddress: userPPPOE.localAddress,
+    });
+
     // create table user pppoe
     await prisma.subscription.update({
       data: {
@@ -84,18 +98,10 @@ export const activateSubscription = async (
       throw new Error("User PPPoE untuk langganan belum tersedia");
     }
 
-    await movePPPOEToProfile(
-      {
-        host: subscription?.package.router.ipAddress || "",
-        username: subscription?.package.router.apiUsername || "",
-        password: decrypt(subscription?.package.router.apiPassword || ""),
-        port: Number(subscription?.package.router.port) || 22,
-      },
-      {
-        profile: targetProfile,
-        name: existingUser.username,
-      }
-    );
+    await movePPPOEToProfile(routerConfig, {
+      profile: targetProfile,
+      name: existingUser.username,
+    });
   }
 
   // update status
@@ -135,22 +141,31 @@ export const deactivateSubscription = async (
     },
   });
 
+  // Validasi router configuration
+  if (!subscription.package.router) {
+    throw new Error("Router tidak ditemukan untuk paket ini");
+  }
+
+  if (!subscription.package.router.ipAddress) {
+    throw new Error("IP Address router tidak valid");
+  }
+
   const existingUser = subscription.usersPPPOE[0];
   if (!existingUser) {
     throw new Error("User PPPoE untuk langganan belum tersedia");
   }
 
-  await movePPPOEToProfile(
-    {
-      host: subscription?.package.router.ipAddress || "",
-      username: subscription?.package.router.apiUsername || "",
-      password: decrypt(subscription?.package.router.apiPassword || ""),
-      port: Number(subscription?.package.router.port) || 22,
-    },
-    {
-      profile: "isolir",
-      name: existingUser.username,
-    }
-  );
+  const routerConfig = {
+    host: subscription.package.router.ipAddress,
+    username: subscription.package.router.apiUsername || "",
+    password: decrypt(subscription.package.router.apiPassword || ""),
+    port: Number(subscription.package.router.port) || 8728,
+  };
+
+  await movePPPOEToProfile(routerConfig, {
+    profile: "isolir",
+    name: existingUser.username,
+  });
+
   await runTriggers("DEACTIVATE_SUBSCRIPTION", subscriptionId);
 };

@@ -212,9 +212,22 @@ export async function getPPPOESecret(
   },
   username: string
 ) {
-  const { connection, close } = await createRouterOSConnection(config);
+  let connection: RouterOSConnection | null = null;
+  let close: (() => Promise<void>) | null = null;
 
   try {
+    ({ connection, close } = await createRouterOSConnection(config));
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error ?? "Unknown error");
+    throw new Error(`Gagal terhubung ke MikroTik: ${message}`);
+  }
+
+  try {
+    if (!connection || !close) {
+      throw new Error("Koneksi MikroTik tidak tersedia");
+    }
+
     const secret = await findSecretByName(connection, username);
     if (!secret) {
       return null;
@@ -229,8 +242,14 @@ export async function getPPPOESecret(
       localAddress: toStringValue(secret["local-address"]),
       comment: toStringValue(secret["comment"]),
     };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error ?? "Unknown error");
+    throw new Error(`Gagal mengambil PPPoE secret: ${message}`);
   } finally {
-    await close();
+    if (close) {
+      await close();
+    }
   }
 }
 
@@ -246,9 +265,22 @@ export async function movePPPOEToProfile(
     profile: string;
   }
 ) {
-  const { connection, close } = await createRouterOSConnection(config);
+  let connection: RouterOSConnection | null = null;
+  let close: (() => Promise<void>) | null = null;
 
   try {
+    ({ connection, close } = await createRouterOSConnection(config));
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error ?? "Unknown error");
+    throw new Error(`Gagal terhubung ke MikroTik: ${message}`);
+  }
+
+  try {
+    if (!connection || !close) {
+      throw new Error("Koneksi MikroTik tidak tersedia");
+    }
+
     const secret = await findSecretByName(connection, user.name);
     if (!secret) {
       throw new Error(`User PPPoE "${user.name}" tidak ditemukan`);
@@ -264,9 +296,9 @@ export async function movePPPOEToProfile(
       );
     }
 
-    // Gunakan executeCommand untuk konsistensi dengan RouterOS 7
+    // RouterOS 7 lebih baik menggunakan numbers parameter untuk set command
     const result = await executeCommand(connection, "/ppp/secret/set", [
-      `=.id=${identifier}`,
+      `=numbers=${identifier}`,
       `=profile=${targetProfile}`,
     ]);
 
@@ -275,13 +307,15 @@ export async function movePPPOEToProfile(
     }
 
     console.log(
-      `Berhasil memindahkan user ${user.name} ke profile ${targetProfile}`
+      `✅ Berhasil memindahkan user ${user.name} ke profile ${targetProfile}`
     );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : String(error ?? "Unknown error");
     throw new Error(`Gagal memindahkan user PPPoE: ${message}`);
   } finally {
-    await close();
+    if (close) {
+      await close();
+    }
   }
 }
