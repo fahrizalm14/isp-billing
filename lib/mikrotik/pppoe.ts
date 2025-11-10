@@ -1,6 +1,5 @@
 export const runtime = "nodejs";
 
-import { toProfileKey } from "./adapator";
 import {
   RouterOSConnection,
   createRouterOSConnection,
@@ -29,38 +28,30 @@ const findSecretByName = async (
   connection: RouterOSConnection,
   username: string
 ) => {
-  console.log("🔍 [FIND_SECRET] Searching for PPPoE secret:", username);
+  const name = (username || "").trim();
+  console.log("🔍 [FIND_SECRET] Searching for PPPoE secret:", name);
 
-  const queries = [username];
-  const profileKey = toProfileKey(username);
-  if (profileKey !== username) {
-    queries.push(profileKey);
+  if (!name) {
+    console.log("❌ [FIND_SECRET] Empty username provided");
+    return undefined;
   }
 
-  console.log("🔍 [FIND_SECRET] Query variations:", queries);
+  const startQuery = Date.now();
+  const result = await executeCommand(connection, "/ppp/secret/print", [
+    SECRET_PROPLIST,
+    `?name=${name}`,
+  ]);
+  console.log(`🔍 [FIND_SECRET] Query completed (${Date.now() - startQuery}ms):`, {
+    code: result.code,
+    found: result.data.length > 0,
+  });
 
-  for (const query of queries) {
-    console.log(`🔍 [FIND_SECRET] Trying query: ${query}`);
-    const startQuery = Date.now();
-    const result = await executeCommand(connection, "/ppp/secret/print", [
-      SECRET_PROPLIST,
-      `?name=${query}`,
-    ]);
-    console.log(
-      `🔍 [FIND_SECRET] Query completed (${Date.now() - startQuery}ms):`,
-      {
-        code: result.code,
-        found: result.data.length > 0,
-      }
-    );
-
-    if (result.code === 0 && result.data.length) {
-      console.log("✅ [FIND_SECRET] Secret found:", result.data[0]);
-      return result.data[0];
-    }
+  if (result.code === 0 && result.data.length) {
+    console.log("✅ [FIND_SECRET] Secret found:", result.data[0]);
+    return result.data[0];
   }
 
-  console.log("❌ [FIND_SECRET] Secret not found for any query variation");
+  console.log("❌ [FIND_SECRET] Secret not found (exact name)");
   return undefined;
 };
 
@@ -68,56 +59,34 @@ const resolveProfileName = async (
   connection: RouterOSConnection,
   profile: string
 ) => {
-  console.log("🔍 [RESOLVE_PROFILE] Resolving profile name:", profile);
+  const name = (profile || "").trim();
+  console.log("🔍 [RESOLVE_PROFILE] Resolving profile name:", name);
 
-  const normalized = (profile || "").trim();
-  if (!normalized) {
+  if (!name) {
     console.log("❌ [RESOLVE_PROFILE] Empty profile name provided");
     return undefined;
   }
 
-  const candidates = [normalized];
-  const keyed = toProfileKey(normalized);
-  if (keyed && !candidates.includes(keyed)) {
-    candidates.push(keyed);
-  }
-  const lower = normalized.toLowerCase();
-  if (lower && !candidates.includes(lower)) {
-    candidates.push(lower);
-  }
+  console.log("🔍 [RESOLVE_PROFILE] Trying exact match:", name);
+  const startQuery = Date.now();
+  const result = await executeCommand(connection, "/ppp/profile/print", [
+    PROFILE_PROPLIST,
+    `?name=${name}`,
+  ]);
+  console.log(`🔍 [RESOLVE_PROFILE] Query completed (${Date.now() - startQuery}ms):`, {
+    code: result.code,
+    found: result.data.length > 0,
+  });
 
-  console.log("🔍 [RESOLVE_PROFILE] Profile name variations:", candidates);
-
-  // Try exact match first with each candidate
-  for (const candidate of candidates) {
-    console.log(`🔍 [RESOLVE_PROFILE] Trying exact match: ${candidate}`);
-    const startQuery = Date.now();
-    const result = await executeCommand(connection, "/ppp/profile/print", [
-      PROFILE_PROPLIST,
-      `?name=${candidate}`,
-    ]);
-    console.log(
-      `🔍 [RESOLVE_PROFILE] Query completed (${Date.now() - startQuery}ms):`,
-      {
-        code: result.code,
-        found: result.data.length > 0,
-      }
-    );
-
-    if (result.code === 0 && result.data.length > 0) {
-      const record = result.data[0];
-      const name = toStringValue(record["name"]);
-      console.log(
-        "✅ [RESOLVE_PROFILE] Profile found (exact match):",
-        name || candidate
-      );
-      return name || candidate;
-    }
+  if (result.code === 0 && result.data.length > 0) {
+    const record = result.data[0];
+    const resolvedName = toStringValue(record["name"]);
+    console.log("✅ [RESOLVE_PROFILE] Profile found:", resolvedName || name);
+    return resolvedName || name;
   }
 
-  // If exact match fails, get all profiles and do case-insensitive search
   console.log(
-    "🔍 [RESOLVE_PROFILE] Exact match failed, searching all profiles..."
+    "❌ [RESOLVE_PROFILE] Exact profile name not found, fetching full profile list for diagnostics"
   );
   const allProfilesResult = await executeCommand(
     connection,
@@ -126,46 +95,17 @@ const resolveProfileName = async (
   );
 
   if (allProfilesResult.code === 0 && allProfilesResult.data.length > 0) {
+    const availableProfiles = allProfilesResult.data
+      .map((record) => toStringValue(record["name"]))
+      .filter(Boolean);
     console.log(
-      `🔍 [RESOLVE_PROFILE] Found ${allProfilesResult.data.length} profiles in MikroTik`
+      "🔍 [RESOLVE_PROFILE] Available profiles in router:",
+      availableProfiles
     );
-
-    const normalizedSearch = normalized.toLowerCase();
-
-    // Log all available profiles for debugging
-    const availableProfiles = allProfilesResult.data.map((record) =>
-      toStringValue(record["name"])
-    );
-    console.log("🔍 [RESOLVE_PROFILE] Available profiles:", availableProfiles);
-
-    // Try case-insensitive match
-    for (const record of allProfilesResult.data) {
-      const profileName = toStringValue(record["name"]);
-      if (profileName.toLowerCase() === normalizedSearch) {
-        console.log(
-          "✅ [RESOLVE_PROFILE] Profile found (case-insensitive):",
-          profileName
-        );
-        return profileName;
-      }
-    }
-
-    // Try partial match (contains)
-    for (const record of allProfilesResult.data) {
-      const profileName = toStringValue(record["name"]);
-      if (profileName.toLowerCase().includes(normalizedSearch)) {
-        console.log(
-          "✅ [RESOLVE_PROFILE] Profile found (partial match):",
-          profileName
-        );
-        return profileName;
-      }
-    }
   }
 
-  console.log("❌ [RESOLVE_PROFILE] Profile not found for any variation");
   console.log(
-    "💡 [RESOLVE_PROFILE] Tip: Check profile name spelling or create the profile in MikroTik first"
+    "💡 [RESOLVE_PROFILE] Tip: Pastikan nama profile di master paket sama persis dengan yang ada di MikroTik"
   );
   return undefined;
 };
