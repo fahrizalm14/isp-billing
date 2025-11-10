@@ -253,6 +253,74 @@ export async function getPPPOESecret(
   }
 }
 
+/**
+ * Mendapatkan statistik bandwidth user PPPoE aktif
+ */
+export async function getPPPOEActiveStats(
+  config: {
+    host: string;
+    username: string;
+    password: string;
+    port: number;
+  },
+  username: string
+) {
+  let connection: RouterOSConnection | null = null;
+  let close: (() => Promise<void>) | null = null;
+
+  try {
+    ({ connection, close } = await createRouterOSConnection(config));
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error ?? "Unknown error");
+    throw new Error(`Gagal terhubung ke MikroTik: ${message}`);
+  }
+
+  try {
+    if (!connection || !close) {
+      throw new Error("Koneksi MikroTik tidak tersedia");
+    }
+
+    // Cari user di active connections
+    const result = await executeCommand(connection, "/ppp/active/print", [
+      `?name=${username}`,
+    ]);
+
+    if (result.code !== 0 || !result.data.length) {
+      return null; // User tidak sedang aktif/online
+    }
+
+    const activeData = result.data[0];
+
+    // Parse bytes to MB/GB
+    const parseBytes = (bytes: unknown): number => {
+      const value = Number(bytes) || 0;
+      return value;
+    };
+
+    const bytesIn = parseBytes(activeData["bytes-in"]);
+    const bytesOut = parseBytes(activeData["bytes-out"]);
+
+    return {
+      username: toStringValue(activeData["name"]) || username,
+      address: toStringValue(activeData["address"]),
+      uptime: toStringValue(activeData["uptime"]),
+      bytesIn,
+      bytesOut,
+      totalBytes: bytesIn + bytesOut,
+      isOnline: true,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error ?? "Unknown error");
+    throw new Error(`Gagal mengambil statistik PPPoE: ${message}`);
+  } finally {
+    if (close) {
+      await close();
+    }
+  }
+}
+
 export async function movePPPOEToProfile(
   config: {
     host: string;

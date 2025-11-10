@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { CheckCircle, Info, Receipt } from "lucide-react";
+import { Activity, CheckCircle, Info, Receipt } from "lucide-react";
 import { useState } from "react";
 
 interface TagihanData {
@@ -30,16 +30,38 @@ interface PaymentHistory {
   number: string;
 }
 
+interface BandwidthUsage {
+  isOnline: boolean;
+  bytesIn: number;
+  bytesOut: number;
+  totalBytes: number;
+  username?: string;
+  address?: string;
+  uptime?: string;
+}
+
 type TagihanState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "none" }
   | { status: "found"; data: TagihanData };
 
+// Helper function untuk format bytes
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return "0 Bytes";
+
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
+
 export default function CekTagihanPage() {
   const [subsId, setSubsId] = useState("");
   const [tagihan, setTagihan] = useState<TagihanState>({ status: "idle" });
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
+  const [bandwidth, setBandwidth] = useState<BandwidthUsage | null>(null);
 
   const handleCekTagihan = async () => {
     if (!subsId) {
@@ -53,14 +75,16 @@ export default function CekTagihanPage() {
     setTagihan({ status: "loading" });
 
     try {
-      // Fetch tagihan dan riwayat pembayaran secara parallel
-      const [tagihanRes, historyRes] = await Promise.all([
+      // Fetch tagihan, riwayat pembayaran, dan bandwidth usage secara parallel
+      const [tagihanRes, historyRes, bandwidthRes] = await Promise.all([
         fetch(`/api/payment/bill/${subsId}`),
         fetch(`/api/payment/history/${subsId}`),
+        fetch(`/api/payment/bandwidth/${subsId}`),
       ]);
 
       const tagihanData = await tagihanRes.json();
       const historyData = await historyRes.json();
+      const bandwidthData = await bandwidthRes.json();
 
       if (tagihanData.error) {
         SwalToast.fire({
@@ -75,6 +99,11 @@ export default function CekTagihanPage() {
       // Set riwayat pembayaran jika ada
       if (!historyData.error && historyData.data) {
         setPaymentHistory(historyData.data);
+      }
+
+      // Set bandwidth usage jika ada
+      if (!bandwidthData.error && bandwidthData.data) {
+        setBandwidth(bandwidthData.data);
       }
     } catch (error) {
       console.error(error);
@@ -167,6 +196,97 @@ export default function CekTagihanPage() {
               </AlertDescription>
             </div>
           </Alert>
+        )}
+
+        {/* Bandwidth Usage */}
+        {bandwidth && (
+          <Card className="mt-6 border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <Activity className="w-5 h-5" />
+                Pemakaian Bandwidth
+              </CardTitle>
+              <CardDescription className="text-muted-foreground">
+                {bandwidth.isOnline
+                  ? "Status: Online"
+                  : "Status: Offline (Data sesi terakhir)"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Status Online */}
+                {bandwidth.isOnline && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span className="text-muted-foreground">
+                      Sedang terhubung
+                    </span>
+                  </div>
+                )}
+
+                {/* Download */}
+                <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Download</p>
+                    <p className="font-bold text-lg text-foreground">
+                      {formatBytes(bandwidth.bytesIn)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">
+                      Data diterima
+                    </div>
+                  </div>
+                </div>
+
+                {/* Upload */}
+                <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Upload</p>
+                    <p className="font-bold text-lg text-foreground">
+                      {formatBytes(bandwidth.bytesOut)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">
+                      Data dikirim
+                    </div>
+                  </div>
+                </div>
+
+                {/* Total */}
+                <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg border border-primary/20">
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Total Pemakaian
+                    </p>
+                    <p className="font-bold text-xl text-primary">
+                      {formatBytes(bandwidth.totalBytes)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">
+                      Sesi ini
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Info */}
+                {bandwidth.isOnline && bandwidth.uptime && (
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-xs text-muted-foreground">
+                      Durasi Koneksi: {bandwidth.uptime}
+                    </p>
+                    {bandwidth.address && (
+                      <p className="text-xs text-muted-foreground">
+                        IP Address: {bandwidth.address}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Riwayat Pembayaran */}
