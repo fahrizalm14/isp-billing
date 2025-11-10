@@ -11,8 +11,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Activity, CheckCircle, Info, Receipt } from "lucide-react";
-import { useState } from "react";
+import {
+  Activity,
+  CheckCircle,
+  CreditCard,
+  Info,
+  Receipt,
+  ShieldCheck,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 
 interface TagihanData {
   customer: string;
@@ -62,6 +69,32 @@ export default function CekTagihanPage() {
   const [tagihan, setTagihan] = useState<TagihanState>({ status: "idle" });
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
   const [bandwidth, setBandwidth] = useState<BandwidthUsage | null>(null);
+
+  const heroHighlights = useMemo(
+    () => [
+      {
+        title: "Status Real-time",
+        description: "Cek tagihan & status koneksi tanpa harus login.",
+        icon: Activity,
+      },
+      {
+        title: "Riwayat Otomatis",
+        description: "Lihat pembayaran terakhir beserta metode yang digunakan.",
+        icon: Receipt,
+      },
+      {
+        title: "Pembayaran Nyaman",
+        description: "Langsung diarahkan ke portal pembayaran resmi.",
+        icon: CreditCard,
+      },
+      {
+        title: "Jaringan Terlindungi",
+        description: "Informasi berasal dari router ISP secara aman.",
+        icon: ShieldCheck,
+      },
+    ],
+    []
+  );
 
   const handleCekTagihan = async () => {
     if (!subsId) {
@@ -128,224 +161,255 @@ export default function CekTagihanPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-center items-center p-4 md:p-10">
-      <h1 className="text-3xl md:text-5xl font-bold text-center text-primary mb-8">
-        Cek Tagihan Internet Anda
-      </h1>
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-primary/15 via-background to-background">
+      <div className="pointer-events-none absolute inset-0 opacity-50">
+        <div className="absolute -top-24 right-10 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute bottom-0 left-10 h-80 w-80 rounded-full bg-secondary/20 blur-[120px]" />
+      </div>
 
-      <div className="w-full max-w-md bg-card shadow-lg rounded-xl p-8">
-        {/* Input */}
-        <div className="mb-4">
-          <Input
-            type="text"
-            placeholder="Masukkan No. Pelanggan"
-            value={subsId}
-            onChange={(e) => setSubsId(e.target.value)}
-            className="border-input bg-background text-foreground placeholder:text-muted-foreground"
-          />
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-12 md:px-8 lg:py-16">
+        <div className="grid items-start gap-8 lg:grid-cols-[1.1fr,0.9fr]">
+          <div className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/20 via-background/80 to-background/60 p-8 text-card-foreground shadow-2xl backdrop-blur">
+            <div className="inline-flex items-center rounded-full border border-white/30 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
+              Portal Pelanggan
+            </div>
+            <h1 className="mt-5 text-3xl font-semibold text-white md:text-5xl">
+              Cek Tagihan & Status Koneksi Dalam Satu Halaman
+            </h1>
+            <p className="mt-4 text-base text-white/80 md:text-lg">
+              Masukkan nomor pelanggan untuk mengetahui total tagihan, akses
+              riwayat pembayaran, serta pantau penggunaan bandwidth secara
+              real-time.
+            </p>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              {heroHighlights.map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-2xl border border-white/20 bg-white/10 p-4 text-white shadow-lg backdrop-blur"
+                >
+                  <div className="flex items-center gap-3">
+                    <item.icon className="h-5 w-5 text-white" />
+                    <p className="text-sm font-semibold uppercase tracking-wide text-white/80">
+                      {item.title}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-sm text-white/70">{item.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Card className="border border-border/60 bg-background/85 shadow-2xl backdrop-blur">
+            <CardHeader>
+              <CardTitle className="text-xl text-foreground">
+                Masukkan Nomor Pelanggan
+              </CardTitle>
+              <CardDescription className="text-sm text-muted-foreground">
+                Nomor pelanggan dapat dilihat di dashboard pelanggan atau dari
+                invoice terakhir.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <Input
+                type="text"
+                placeholder="Contoh: 2201-00123"
+                value={subsId}
+                onChange={(e) => setSubsId(e.target.value)}
+                className="h-12 border border-border/70 bg-background/60 text-base placeholder:text-muted-foreground"
+              />
+              <Button
+                className="h-12 w-full text-base font-semibold shadow-lg"
+                onClick={handleCekTagihan}
+                disabled={tagihan.status === "loading"}
+              >
+                {tagihan.status === "loading" ? "Memeriksa..." : "Cek Tagihan"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Dengan memeriksa tagihan, Anda menyetujui kebijakan privasi
+                layanan kami.
+              </p>
+
+              {/* Jika ada tagihan */}
+              {tagihan.status === "found" && (
+                <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-background to-background p-5 shadow-inner">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-primary" />
+                    <p className="font-semibold text-primary">
+                      Tagihan Ditemukan
+                    </p>
+                  </div>
+                  <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+                    <p>
+                      Pelanggan:{" "}
+                      <span className="font-semibold text-foreground">
+                        {tagihan.data.customer}
+                      </span>
+                    </p>
+                    <p>
+                      Bulan:{" "}
+                      <span className="font-semibold text-foreground">
+                        {tagihan.data.month}
+                      </span>
+                    </p>
+                  </div>
+                  <p className="mt-4 text-3xl font-bold text-foreground">
+                    Rp {Intl.NumberFormat("id-ID").format(tagihan.data.amount)}
+                  </p>
+                  <Button
+                    variant="secondary"
+                    className="mt-4 w-full"
+                    onClick={handleBayar}
+                  >
+                    Bayar Sekarang
+                  </Button>
+                </div>
+              )}
+
+              {/* Jika tidak ada tagihan */}
+              {tagihan.status === "none" && (
+                <Alert className="border border-border/70 bg-muted/60 text-foreground">
+                  <div className="flex items-start gap-3">
+                    <Info className="mt-1 h-5 w-5 text-foreground" />
+                    <div>
+                      <AlertTitle>Tidak Ada Tagihan</AlertTitle>
+                      <AlertDescription className="text-sm">
+                        Anda tidak memiliki tagihan pada bulan ini. Hubungi admin
+                        jika memerlukan bantuan.
+                      </AlertDescription>
+                    </div>
+                  </div>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Tombol Cek */}
-        <Button
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mb-4"
-          onClick={handleCekTagihan}
-          disabled={tagihan.status === "loading"}
-        >
-          {tagihan.status === "loading" ? "Memeriksa..." : "Cek Tagihan"}
-        </Button>
+        {(bandwidth || paymentHistory.length > 0) && (
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Bandwidth Usage */}
+            {bandwidth && (
+              <Card className="border border-border/70 bg-background/90 backdrop-blur">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-foreground">
+                    <Activity className="h-5 w-5 text-primary" />
+                    Pemakaian Bandwidth
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    {bandwidth.isOnline
+                      ? "Sedang online, data diperbarui otomatis."
+                      : "Status offline, menampilkan data sesi terakhir."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {bandwidth.isOnline && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-muted-foreground">
+                          Tersambung selama {bandwidth.uptime}
+                        </span>
+                      </div>
+                    )}
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                          Download
+                        </p>
+                        <p className="mt-2 text-2xl font-bold text-foreground">
+                          {formatBytes(bandwidth.bytesIn)}
+                        </p>
+                        <span className="text-xs text-muted-foreground">
+                          Data diterima
+                        </span>
+                      </div>
+                      <div className="rounded-2xl border border-secondary/20 bg-secondary/5 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                          Upload
+                        </p>
+                        <p className="mt-2 text-2xl font-bold text-foreground">
+                          {formatBytes(bandwidth.bytesOut)}
+                        </p>
+                        <span className="text-xs text-muted-foreground">
+                          Data dikirim
+                        </span>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-accent/30 bg-accent/10 p-4">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Total Pemakaian
+                      </p>
+                      <p className="mt-2 text-3xl font-bold text-accent-foreground">
+                        {formatBytes(bandwidth.totalBytes)}
+                      </p>
+                      {bandwidth.address && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          IP Address: {bandwidth.address}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-        {/* Jika ada tagihan */}
-        {tagihan.status === "found" && (
-          <div className="border border-accent rounded-lg p-4 mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle className="w-6 h-6 text-accent" />
-              <h2 className="text-accent font-semibold text-lg">
-                Tagihan Ditemukan
-              </h2>
-            </div>
-            <p className="text-foreground">
-              Pelanggan:{" "}
-              <span className="font-semibold">{tagihan.data.customer}</span>
-            </p>
-            <p className="text-foreground">
-              Bulan: <span className="font-semibold">{tagihan.data.month}</span>
-            </p>
-            <p className="text-destructive font-bold text-xl">
-              Rp {Intl.NumberFormat("id-ID").format(tagihan.data.amount)}
-            </p>
-            <Button
-              className="mt-3 w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-              onClick={handleBayar}
-            >
-              Bayar Sekarang
-            </Button>
+            {/* Riwayat Pembayaran */}
+            {paymentHistory.length > 0 && (
+              <Card className="border border-border/70 bg-background/90 backdrop-blur">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-foreground">
+                    <Receipt className="h-5 w-5 text-primary" />
+                    Riwayat Pembayaran
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    Pembayaran terakhir Anda terekam otomatis.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {paymentHistory.map((payment) => (
+                    <div
+                      key={payment.id}
+                      className="flex items-start justify-between rounded-2xl border border-border/60 p-4 transition hover:bg-muted/60"
+                    >
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {payment.number || "Invoice"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(payment.updatedAt).toLocaleDateString(
+                            "id-ID",
+                            {
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                            }
+                          )}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {payment.paymentMethod || "Manual"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-primary">
+                          Rp {Intl.NumberFormat("id-ID").format(payment.amount)}
+                        </p>
+                        <div className="mt-1 flex items-center gap-1 text-xs text-green-500">
+                          <CheckCircle className="h-3 w-3" />
+                          Lunas
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
 
-        {/* Jika tidak ada tagihan */}
-        {tagihan.status === "none" && (
-          <Alert className="mt-4 border-border bg-muted rounded-lg shadow-sm flex items-start gap-2 p-4">
-            <Info className="h-6 w-6 text-secondary-foreground mt-1" />
-            <div>
-              <AlertTitle className="text-foreground font-semibold">
-                Tidak Ada Tagihan
-              </AlertTitle>
-              <AlertDescription className="text-muted-foreground">
-                Anda tidak memiliki tagihan pada bulan ini. Hubungi admin jika
-                ada pertanyaan.
-              </AlertDescription>
-            </div>
-          </Alert>
-        )}
-
-        {/* Bandwidth Usage */}
-        {bandwidth && (
-          <Card className="mt-6 border-border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <Activity className="w-5 h-5" />
-                Pemakaian Bandwidth
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                {bandwidth.isOnline
-                  ? "Status: Online"
-                  : "Status: Offline (Data sesi terakhir)"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Status Online */}
-                {bandwidth.isOnline && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-muted-foreground">
-                      Sedang terhubung
-                    </span>
-                  </div>
-                )}
-
-                {/* Download */}
-                <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Download</p>
-                    <p className="font-bold text-lg text-foreground">
-                      {formatBytes(bandwidth.bytesIn)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">
-                      Data diterima
-                    </div>
-                  </div>
-                </div>
-
-                {/* Upload */}
-                <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Upload</p>
-                    <p className="font-bold text-lg text-foreground">
-                      {formatBytes(bandwidth.bytesOut)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">
-                      Data dikirim
-                    </div>
-                  </div>
-                </div>
-
-                {/* Total */}
-                <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg border border-primary/20">
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Total Pemakaian
-                    </p>
-                    <p className="font-bold text-xl text-primary">
-                      {formatBytes(bandwidth.totalBytes)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs text-muted-foreground">
-                      Sesi ini
-                    </div>
-                  </div>
-                </div>
-
-                {/* Additional Info */}
-                {bandwidth.isOnline && bandwidth.uptime && (
-                  <div className="pt-2 border-t border-border">
-                    <p className="text-xs text-muted-foreground">
-                      Durasi Koneksi: {bandwidth.uptime}
-                    </p>
-                    {bandwidth.address && (
-                      <p className="text-xs text-muted-foreground">
-                        IP Address: {bandwidth.address}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Riwayat Pembayaran */}
-        {paymentHistory.length > 0 && (
-          <Card className="mt-6 border-border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <Receipt className="w-5 h-5" />
-                Riwayat Pembayaran
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                5 Pembayaran terakhir Anda
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {paymentHistory.map((payment) => (
-                  <div
-                    key={payment.id}
-                    className="flex justify-between items-start p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <p className="font-semibold text-foreground">
-                        {payment.number || "Invoice"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(payment.updatedAt).toLocaleDateString(
-                          "id-ID",
-                          {
-                            day: "numeric",
-                            month: "long",
-                            year: "numeric",
-                          }
-                        )}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {payment.paymentMethod || "Manual"}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-primary">
-                        Rp {Intl.NumberFormat("id-ID").format(payment.amount)}
-                      </p>
-                      <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-500 mt-1">
-                        <CheckCircle className="w-3 h-3" />
-                        Lunas
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <p className="pb-6 text-center text-xs text-muted-foreground">
+          © 2025 ISP Anda – Semua Hak Dilindungi
+        </p>
       </div>
-
-      <p className="text-xs text-muted-foreground text-center mt-6">
-        © 2025 ISP Anda – Semua Hak Dilindungi
-      </p>
     </div>
   );
 }

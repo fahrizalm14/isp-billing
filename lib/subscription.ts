@@ -77,7 +77,7 @@ export const activateSubscription = async (
     console.log("🔵 [ACTIVATE] No existing PPPoE user, creating new one...");
     const web = await prisma.websiteInfo.findFirst();
 
-    if (!subscription.package.profileName) {
+    if (!subscription.package.name) {
       console.error("❌ [ACTIVATE] MikroTik profile not found for package");
       throw new Error("Profile MikroTik untuk paket tidak ditemukan");
     }
@@ -89,7 +89,7 @@ export const activateSubscription = async (
         (web?.alias || "pppoe").replace(/[^a-zA-Z0-9]/g, "").toLowerCase(),
         5
       ),
-      profile: subscription.package.profileName,
+      profile: subscription.package.name,
       localAddress: subscription.package.localAddress,
     };
 
@@ -130,7 +130,7 @@ export const activateSubscription = async (
   } else {
     console.log("🔵 [ACTIVATE] PPPoE user exists, moving to active profile...");
 
-    const targetProfile = subscription.package.profileName;
+    const targetProfile = subscription.package.name;
     if (!targetProfile) {
       console.error("❌ [ACTIVATE] Target profile not found for package");
       throw new Error("Profile MikroTik untuk paket tidak ditemukan");
