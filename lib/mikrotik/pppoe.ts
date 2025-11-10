@@ -10,6 +10,21 @@ import {
 const toStringValue = (value: unknown) =>
   value === null || value === undefined ? "" : String(value);
 
+const SECRET_PROPLIST =
+  "=.proplist=.id,name,password,profile,service,local-address,comment";
+const PROFILE_PROPLIST = "=.proplist=.id,name";
+
+const toIdentifierParam = (identifier: string) => {
+  const trimmed = toStringValue(identifier).trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  return trimmed.startsWith("*")
+    ? `=.id=${trimmed}`
+    : `=numbers=${trimmed}`;
+};
+
 const findSecretByName = async (
   connection: RouterOSConnection,
   username: string
@@ -28,6 +43,7 @@ const findSecretByName = async (
     console.log(`🔍 [FIND_SECRET] Trying query: ${query}`);
     const startQuery = Date.now();
     const result = await executeCommand(connection, "/ppp/secret/print", [
+      SECRET_PROPLIST,
       `?name=${query}`,
     ]);
     console.log(
@@ -77,6 +93,7 @@ const resolveProfileName = async (
     console.log(`🔍 [RESOLVE_PROFILE] Trying exact match: ${candidate}`);
     const startQuery = Date.now();
     const result = await executeCommand(connection, "/ppp/profile/print", [
+      PROFILE_PROPLIST,
       `?name=${candidate}`,
     ]);
     console.log(
@@ -105,7 +122,7 @@ const resolveProfileName = async (
   const allProfilesResult = await executeCommand(
     connection,
     "/ppp/profile/print",
-    []
+    [PROFILE_PROPLIST]
   );
 
   if (allProfilesResult.code === 0 && allProfilesResult.data.length > 0) {
@@ -342,10 +359,20 @@ export async function deleteUserPPPOE(
     const identifier =
       toStringValue(secret[".id"]) || toStringValue(secret["name"]);
 
-    // Gunakan executeCommand untuk konsistensi dengan RouterOS 7
-    const result = await executeCommand(connection, "/ppp/secret/remove", [
-      `=numbers=${identifier}`,
-    ]);
+    // Gunakan executeCommand untuk konsistensi dengan RouterOS 6/7
+    const identifierParam = toIdentifierParam(identifier);
+    if (!identifierParam) {
+      throw new Error(
+        "Identifier PPPoE secret tidak ditemukan. Coba sinkronisasi ulang."
+      );
+    }
+
+    const params = [identifierParam];
+    const result = await executeCommand(
+      connection,
+      "/ppp/secret/remove",
+      params
+    );
 
     if (result.code !== 0) {
       throw new Error(result.stderr || "Gagal menghapus PPPoE secret");
@@ -576,13 +603,22 @@ export async function movePPPOEToProfile(
       return;
     }
 
-    // RouterOS 7 lebih baik menggunakan numbers parameter untuk set command
+    // RouterOS 6/7 membutuhkan parameter identifier yang sesuai (.id atau numbers)
     console.log("🔧 [MOVE_PROFILE] Executing profile change command...");
     const startUpdate = Date.now();
-    const result = await executeCommand(connection, "/ppp/secret/set", [
-      `=numbers=${identifier}`,
-      `=profile=${targetProfile}`,
-    ]);
+    const identifierParam = toIdentifierParam(identifier);
+    if (!identifierParam) {
+      throw new Error(
+        "Identifier PPPoE secret tidak ditemukan. Silakan coba ulang prosesnya."
+      );
+    }
+
+    const params = [identifierParam, `=profile=${targetProfile}`];
+    const result = await executeCommand(
+      connection,
+      "/ppp/secret/set",
+      params
+    );
     console.log(
       `✅ [MOVE_PROFILE] Command executed (${Date.now() - startUpdate}ms)`
     );
