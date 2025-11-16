@@ -2,7 +2,6 @@
 
 import SubscriptionDetailModal from "@/components/SubscriptionDetailModal";
 import SubscriptionFormModal from "@/components/SubscriptionFormModal";
-import UpdateExpiredModal from "@/components/UpdateExpiredModal";
 import { SwalToast } from "@/components/SweetAlert";
 import { Button } from "@/components/ui/button";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -22,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import UpdateExpiredModal from "@/components/UpdateExpiredModal";
 import { useEffect, useState } from "react";
 import {
   FaEdit,

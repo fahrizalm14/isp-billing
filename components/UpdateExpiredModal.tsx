@@ -76,7 +76,10 @@ export default function UpdateExpiredModal({
       const data = await res.json();
 
       if (res.ok) {
-        SwalToast.fire({ icon: "success", title: "Tanggal expired berhasil diupdate." });
+        SwalToast.fire({
+          icon: "success",
+          title: "Tanggal expired berhasil diupdate.",
+        });
         onSuccess();
         onClose();
         reset({ expiredAt: "" });
@@ -106,7 +109,9 @@ export default function UpdateExpiredModal({
             <label className="block mb-1">Tanggal Expired</label>
             <Input type="date" {...register("expiredAt")} />
             {errors.expiredAt && (
-              <p className="text-sm text-red-500 mt-1">{errors.expiredAt.message}</p>
+              <p className="text-sm text-red-500 mt-1">
+                {errors.expiredAt.message}
+              </p>
             )}
           </div>
 
