@@ -63,7 +63,7 @@ export const activateSubscription = async (
     host: subscription.package.router.ipAddress,
     username: subscription.package.router.apiUsername || "",
     password: decrypt(subscription.package.router.apiPassword || ""),
-    port: Number(subscription.package.router.port) || 8728,
+    port: Number(subscription.package.router.port) || 65534,
   };
 
   console.log("✅ [ACTIVATE] Router config:", {
@@ -238,7 +238,7 @@ export const deactivateSubscription = async (
     host: subscription.package.router.ipAddress,
     username: subscription.package.router.apiUsername || "",
     password: decrypt(subscription.package.router.apiPassword || ""),
-    port: Number(subscription.package.router.port) || 8728,
+    port: Number(subscription.package.router.port) || 65534,
   };
 
   console.log("✅ [DEACTIVATE] Router config:", {

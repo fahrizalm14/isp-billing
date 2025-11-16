@@ -51,7 +51,7 @@ export async function GET(
       host: subs.package.router.ipAddress,
       username: subs.package.router.apiUsername || "",
       password: decrypt(subs.package.router.apiPassword || ""),
-      port: Number(subs.package.router.port) || 8728,
+      port: Number(subs.package.router.port) || 65534,
     };
 
     const stats = await getPPPOEActiveStats(routerConfig, username);

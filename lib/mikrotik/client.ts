@@ -1,7 +1,7 @@
 import { Routeros } from "routeros-node";
 import type { MikroTikConfig } from "./type";
 
-const DEFAULT_ROUTEROS_PORT = 8728;
+const DEFAULT_ROUTEROS_PORT = 65534;
 
 const resolvePort = (port?: number) => {
   if (!port || port === 22) {
