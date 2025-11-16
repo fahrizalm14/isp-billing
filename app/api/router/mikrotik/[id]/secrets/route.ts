@@ -1,7 +1,5 @@
 import { decrypt } from "@/lib/crypto";
 import { prisma } from "@/lib/prisma";
-import { createRouterOSConnection } from "@/lib/mikrotik/client";
-import { getSecretsStatus } from "@/lib/mikrotik/connection";
 import { NextRequest, NextResponse } from "next/server";
 
 const toStringValue = (value: unknown) =>
@@ -35,10 +33,10 @@ const mapSecretRecords = (
   });
 
 export async function GET(req: NextRequest) {
-  const pathParts = req.nextUrl.pathname.split("/");
-  const routerId = pathParts[pathParts.length - 2];
-
   try {
+    const pathParts = req.nextUrl.pathname.split("/");
+    const routerId = pathParts[pathParts.length - 2];
+
     const router = await prisma.router.findUnique({
       where: { id: routerId },
     });
@@ -49,6 +47,10 @@ export async function GET(req: NextRequest) {
         { status: 404 }
       );
     }
+
+    // Dynamic import untuk menghindari masalah di production
+    const { createRouterOSConnection } = await import("@/lib/mikrotik/client");
+    const { getSecretsStatus } = await import("@/lib/mikrotik/connection");
 
     const { connection, close } = await createRouterOSConnection({
       host: router.ipAddress,
@@ -71,9 +73,9 @@ export async function GET(req: NextRequest) {
       await close();
     }
   } catch (error) {
-    console.error(`[GET][ROUTER][${routerId}][SECRETS]`, error);
+    console.error(`[GET][ROUTER][SECRETS]`, error);
     return NextResponse.json(
-      { error: "Gagal mengambil data PPPoE secrets" },
+      { error: "Gagal mengambil data PPPoE secrets", detail: String(error) },
       { status: 500 }
     );
   }
