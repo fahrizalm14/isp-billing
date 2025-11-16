@@ -611,22 +611,24 @@ export default function SubscriptionFormModal({
                   </p>
                 )}
               </div>
-              <div className="flex justify-end gap-2 pt-4 border-t mt-8 mb-20 sm:mb-0">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 sm:flex-none px-4 py-3 sm:py-2 border rounded text-sm hover:bg-secondary/10"
-                  disabled={loading}
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-primary text-white rounded text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={loading}
-                >
-                  {loading ? "Menyimpan..." : isEdit ? "Update" : "Simpan"}
-                </button>
+              <div className="flex">
+                <div className="justify-end gap-2 pt-4 border-t mb-20 pb-20">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex-1 sm:flex-none px-4 py-3 sm:py-2 border rounded text-sm hover:bg-secondary/10"
+                    disabled={loading}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-primary text-white rounded text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={loading}
+                  >
+                    {loading ? "Menyimpan..." : isEdit ? "Update" : "Simpan"}
+                  </button>
+                </div>
               </div>
             </div>
           </form>
