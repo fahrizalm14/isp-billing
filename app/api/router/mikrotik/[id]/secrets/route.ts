@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
     // Dynamic import untuk menghindari masalah di production
     const { createRouterOSConnection } = await import("@/lib/mikrotik/client");
     const { getSecretsStatus } = await import("@/lib/mikrotik/connection");
+    console.log(decrypt(router.apiPassword));
 
     const { connection, close } = await createRouterOSConnection({
       host: router.ipAddress,
