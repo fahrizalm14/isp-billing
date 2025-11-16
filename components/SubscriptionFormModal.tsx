@@ -377,14 +377,17 @@ export default function SubscriptionFormModal({
   return (
     <>
       <Dialog open={rootModal} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto pb-6">
           <DialogHeader>
             <DialogTitle>
               {isEdit ? "Edit Subscription" : "Tambah Subscription"}
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="space-y-4 mt-2 pb-4"
+          >
             {/* NAME & PHONE */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -613,7 +616,7 @@ export default function SubscriptionFormModal({
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-4">
+            <div className="flex justify-end gap-2 pt-4 sticky bottom-0 bg-background pb-2 border-t mt-4">
               <button
                 type="button"
                 onClick={onClose}
@@ -630,7 +633,6 @@ export default function SubscriptionFormModal({
               </button>
             </div>
           </form>
-          <div className="mb-5"></div>
         </DialogContent>
       </Dialog>
 
