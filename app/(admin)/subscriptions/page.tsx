@@ -2,6 +2,7 @@
 
 import SubscriptionDetailModal from "@/components/SubscriptionDetailModal";
 import SubscriptionFormModal from "@/components/SubscriptionFormModal";
+import UpdateExpiredModal from "@/components/UpdateExpiredModal";
 import { SwalToast } from "@/components/SweetAlert";
 import { Button } from "@/components/ui/button";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -59,6 +60,12 @@ export default function SubscriptionPage() {
   const [subsDetailModal, setSubsDetailModal] = useState({
     id: "",
     open: false,
+  });
+
+  const [updateExpiredModal, setUpdateExpiredModal] = useState({
+    id: "",
+    open: false,
+    expiredAt: "",
   });
 
   // ✅ Dialog bypass isolir
@@ -344,7 +351,24 @@ export default function SubscriptionPage() {
                   {new Date(sub.createdAt).toLocaleDateString("id-ID")}
                 </TableCell>
                 <TableCell>
-                  {new Date(sub.expiredAt).toLocaleDateString("id-ID")}
+                  <div className="flex items-center gap-2">
+                    <span>
+                      {new Date(sub.expiredAt).toLocaleDateString("id-ID")}
+                    </span>
+                    <button
+                      title="btnEditExpired"
+                      className="bg-yellow-500 text-white p-1 rounded hover:bg-yellow-600"
+                      onClick={() =>
+                        setUpdateExpiredModal({
+                          id: sub.id,
+                          open: true,
+                          expiredAt: sub.expiredAt,
+                        })
+                      }
+                    >
+                      <FaEdit className="w-3 h-3" />
+                    </button>
+                  </div>
                 </TableCell>
                 <TableCell className="px-4 py-2 text-center flex justify-center gap-2">
                   <button
@@ -476,6 +500,15 @@ export default function SubscriptionPage() {
         onClose={() => {
           setSubsDetailModal((_prev) => ({ ..._prev, open: false }));
         }}
+      />
+      <UpdateExpiredModal
+        open={updateExpiredModal.open}
+        subscriptionId={updateExpiredModal.id}
+        currentExpiredAt={updateExpiredModal.expiredAt}
+        onClose={() =>
+          setUpdateExpiredModal({ id: "", open: false, expiredAt: "" })
+        }
+        onSuccess={fetchSubscriptions}
       />
       <ConfirmDialog
         open={subsAction.open}
