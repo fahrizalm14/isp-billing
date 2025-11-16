@@ -19,9 +19,7 @@ const toIdentifierParam = (identifier: string) => {
     return "";
   }
 
-  return trimmed.startsWith("*")
-    ? `=.id=${trimmed}`
-    : `=numbers=${trimmed}`;
+  return trimmed.startsWith("*") ? `=.id=${trimmed}` : `=numbers=${trimmed}`;
 };
 
 const findSecretByName = async (
@@ -41,10 +39,13 @@ const findSecretByName = async (
     SECRET_PROPLIST,
     `?name=${name}`,
   ]);
-  console.log(`🔍 [FIND_SECRET] Query completed (${Date.now() - startQuery}ms):`, {
-    code: result.code,
-    found: result.data.length > 0,
-  });
+  console.log(
+    `🔍 [FIND_SECRET] Query completed (${Date.now() - startQuery}ms):`,
+    {
+      code: result.code,
+      found: result.data.length > 0,
+    }
+  );
 
   if (result.code === 0 && result.data.length) {
     console.log("✅ [FIND_SECRET] Secret found:", result.data[0]);
@@ -73,10 +74,13 @@ const resolveProfileName = async (
     PROFILE_PROPLIST,
     `?name=${name}`,
   ]);
-  console.log(`🔍 [RESOLVE_PROFILE] Query completed (${Date.now() - startQuery}ms):`, {
-    code: result.code,
-    found: result.data.length > 0,
-  });
+  console.log(
+    `🔍 [RESOLVE_PROFILE] Query completed (${Date.now() - startQuery}ms):`,
+    {
+      code: result.code,
+      found: result.data.length > 0,
+    }
+  );
 
   if (result.code === 0 && result.data.length > 0) {
     const record = result.data[0];
@@ -554,11 +558,7 @@ export async function movePPPOEToProfile(
     }
 
     const params = [identifierParam, `=profile=${targetProfile}`];
-    const result = await executeCommand(
-      connection,
-      "/ppp/secret/set",
-      params
-    );
+    const result = await executeCommand(connection, "/ppp/secret/set", params);
     console.log(
       `✅ [MOVE_PROFILE] Command executed (${Date.now() - startUpdate}ms)`
     );
@@ -575,6 +575,64 @@ export async function movePPPOEToProfile(
     console.log(
       `✅ [MOVE_PROFILE] Successfully moved user ${user.name} from "${currentProfile}" to "${targetProfile}"`
     );
+
+    // Jika dipindahkan ke profile "isolir", disconnect user yang sedang aktif
+    if (targetProfile.toLowerCase() === "isolir") {
+      console.log(
+        "🔧 [MOVE_PROFILE] Target profile is 'isolir', checking for active connection..."
+      );
+
+      try {
+        const activeResult = await executeCommand(
+          connection,
+          "/ppp/active/print",
+          [`?name=${user.name}`]
+        );
+
+        if (activeResult.code === 0 && activeResult.data.length > 0) {
+          const activeConnection = activeResult.data[0];
+          const activeId = toStringValue(activeConnection[".id"]);
+
+          console.log(
+            "🔧 [MOVE_PROFILE] Active connection found, disconnecting user...",
+            {
+              activeId,
+              username: user.name,
+            }
+          );
+
+          const removeResult = await executeCommand(
+            connection,
+            "/ppp/active/remove",
+            [`=.id=${activeId}`]
+          );
+
+          if (removeResult.code === 0) {
+            console.log(
+              `✅ [MOVE_PROFILE] Successfully disconnected active user ${user.name}`
+            );
+          } else {
+            console.warn(
+              `⚠️ [MOVE_PROFILE] Failed to disconnect user ${user.name}:`,
+              removeResult.stderr
+            );
+          }
+        } else {
+          console.log(
+            "ℹ️ [MOVE_PROFILE] User is not currently connected, no need to disconnect"
+          );
+        }
+      } catch (disconnectError) {
+        // Log error tapi jangan throw, karena user sudah berhasil dipindahkan ke profile isolir
+        const disconnectMessage =
+          disconnectError instanceof Error
+            ? disconnectError.message
+            : String(disconnectError ?? "Unknown error");
+        console.warn(
+          `⚠️ [MOVE_PROFILE] Error while disconnecting user: ${disconnectMessage}`
+        );
+      }
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : String(error ?? "Unknown error");
