@@ -377,17 +377,14 @@ export default function SubscriptionFormModal({
   return (
     <>
       <Dialog open={rootModal} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto pb-6">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto pb-0 sm:pb-6">
           <DialogHeader>
             <DialogTitle>
               {isEdit ? "Edit Subscription" : "Tambah Subscription"}
             </DialogTitle>
           </DialogHeader>
 
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="space-y-4 mt-2 pb-4"
-          >
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
             {/* NAME & PHONE */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -614,23 +611,23 @@ export default function SubscriptionFormModal({
                   </p>
                 )}
               </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-4 sticky bottom-0 bg-background pb-2 border-t mt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border rounded text-sm"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-primary text-white rounded text-sm hover:bg-primary/70"
-                disabled={loading}
-              >
-                {loading ? "Menyimpan..." : isEdit ? "Update" : "Simpan"}
-              </button>
+              <div className="flex justify-end gap-2 pt-4 border-t mt-8 mb-20 sm:mb-0">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 sm:flex-none px-4 py-3 sm:py-2 border rounded text-sm hover:bg-secondary/10"
+                  disabled={loading}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-primary text-white rounded text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loading}
+                >
+                  {loading ? "Menyimpan..." : isEdit ? "Update" : "Simpan"}
+                </button>
+              </div>
             </div>
           </form>
         </DialogContent>
