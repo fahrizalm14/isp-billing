@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChangeEvent, useCallback, useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -113,23 +113,28 @@ export default function SubscriptionFormModal({
   const [loadingSecrets, setLoadingSecrets] = useState(false);
   const [initialSecretUsername, setInitialSecretUsername] = useState("");
 
-  const fetchSecrets = useCallback(async (routerId: string) => {
-    if (!routerId) {
+  useEffect(() => {
+    if (!selectedRouterId) {
       setPppoeSecrets([]);
+      setLoadingSecrets(false);
       return;
     }
 
-    setLoadingSecrets(true);
-    try {
-      const res = await fetch(`/api/router/mikrotik/${routerId}/secrets`);
-      const json = await res.json();
+    const fetchSecrets = async () => {
+      setLoadingSecrets(true);
+      try {
+        const res = await fetch(
+          `/api/router/mikrotik/${selectedRouterId}/secrets`
+        );
+        const json = await res.json();
 
-      if (!res.ok) {
-        throw new Error(json.error || "Gagal mengambil secret PPPoE");
-      }
+        if (!res.ok) {
+          throw new Error(json.error || "Gagal mengambil secret PPPoE");
+        }
 
-      const inactive: PPPoESecretOption[] = (json.secrets?.inactive || []).map(
-        (secret: Record<string, string>, index: number) => ({
+        const inactive: PPPoESecretOption[] = (
+          json.secrets?.inactive || []
+        ).map((secret: Record<string, string>, index: number) => ({
           id:
             secret.id ||
             secret.username ||
@@ -139,45 +144,38 @@ export default function SubscriptionFormModal({
           profile: secret.profile || "",
           status: "inactive",
           comment: secret.comment,
-        })
-      );
+        }));
 
-      const active: PPPoESecretOption[] = (json.secrets?.active || []).map(
-        (secret: Record<string, string>, index: number) => ({
-          id:
-            secret.id ||
-            secret.username ||
-            `active-${index}-${secret.profile || "secret"}`,
-          username: secret.username || "",
-          password: secret.password || "",
-          profile: secret.profile || "",
-          status: "active",
-          comment: secret.comment,
-        })
-      );
+        const active: PPPoESecretOption[] = (json.secrets?.active || []).map(
+          (secret: Record<string, string>, index: number) => ({
+            id:
+              secret.id ||
+              secret.username ||
+              `active-${index}-${secret.profile || "secret"}`,
+            username: secret.username || "",
+            password: secret.password || "",
+            profile: secret.profile || "",
+            status: "active",
+            comment: secret.comment,
+          })
+        );
 
-      const combined = [...inactive, ...active];
-      setPppoeSecrets(combined);
-    } catch (error) {
-      console.error(error);
-      setPppoeSecrets([]);
-      SwalToast.fire({
-        icon: "warning",
-        title: "Gagal memuat PPPoE secret dari router.",
-      });
-    } finally {
-      setLoadingSecrets(false);
-    }
-  }, []);
+        const combined = [...inactive, ...active];
+        setPppoeSecrets(combined);
+      } catch (error) {
+        console.error(error);
+        setPppoeSecrets([]);
+        SwalToast.fire({
+          icon: "warning",
+          title: "Gagal memuat PPPoE secret dari router.",
+        });
+      } finally {
+        setLoadingSecrets(false);
+      }
+    };
 
-  useEffect(() => {
-    if (!selectedRouterId) {
-      setPppoeSecrets([]);
-      return;
-    }
-
-    fetchSecrets(selectedRouterId);
-  }, [selectedRouterId, fetchSecrets]);
+    fetchSecrets();
+  }, [selectedRouterId]);
 
   useEffect(() => {
     if (!initialSecretUsername || selectedSecretKey) return;
