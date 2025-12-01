@@ -1,9 +1,4 @@
 import { decrypt } from "./crypto";
-import {
-  RouterOSConnection,
-  createRouterOSConnection,
-} from "./mikrotik/client";
-import { getSecretsStatus } from "./mikrotik/connection";
 import { generateInvoiceForSubscription } from "./payment";
 import { prisma } from "./prisma";
 import { runTriggers } from "./runTriggers";
@@ -193,6 +188,7 @@ export const checkInactiveConnections = async () => {
   let processed = 0;
 
   const routerInactiveUsers = new Map<string, Set<string>>();
+  const { getInterface } = await import("@/lib/mikrotik/connection");
 
   // Ambil semua PPP secret yang non-aktif dulu.
   for (const { router } of routerGroups.values()) {
@@ -203,30 +199,15 @@ export const checkInactiveConnections = async () => {
       continue;
     }
 
-    let connection: RouterOSConnection | null = null;
-    let close: (() => Promise<void>) | null = null;
-
     try {
-      const config = {
+      const interfaceData = await getInterface({
         host: router.ipAddress,
         username: router.apiUsername,
         password: safeDecryptPassword(router.apiPassword),
         port: Number(router.port) || 65534,
-      };
-      ({ connection, close } = await createRouterOSConnection(config));
-    } catch (error) {
-      console.error(
-        "❌ Gagal terhubung ke MikroTik untuk router",
-        router.ipAddress,
-        error
-      );
-      continue;
-    }
-
-    try {
-      const status = await getSecretsStatus(connection);
+      });
       const inactiveSet = new Set(
-        status.inactive
+        (interfaceData.secrets?.inactive ?? [])
           .map((record) =>
             normalizeRouterUsername(
               record["name"] || record["user"] || record["username"]
@@ -241,10 +222,6 @@ export const checkInactiveConnections = async () => {
         router.ipAddress,
         error
       );
-    } finally {
-      if (close) {
-        await close();
-      }
     }
   }
 
