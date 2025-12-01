@@ -173,6 +173,7 @@ const TriggerManagement: React.FC<TriggerManagementProps> = ({ templates }) => {
                               "DEACTIVATE_SUBSCRIPTION",
                               "ACTIVATE_SUBSCRIPTION",
                               "INVOICE_CREATED",
+                              "INACTIVE_CONNECTION",
                             ].map((key) => (
                               <DropdownMenuItem
                                 key={key}

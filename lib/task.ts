@@ -1,5 +1,12 @@
+import { decrypt } from "./crypto";
+import {
+  RouterOSConnection,
+  createRouterOSConnection,
+} from "./mikrotik/client";
+import { getSecretsStatus } from "./mikrotik/connection";
 import { generateInvoiceForSubscription } from "./payment";
 import { prisma } from "./prisma";
+import { runTriggers } from "./runTriggers";
 import { deactivateSubscription } from "./subscription";
 
 // Helper buat konversi jam Jakarta ke UTC Date
@@ -34,6 +41,19 @@ const getJakartaDayStartUTC = (date = new Date()) => {
 const isSameJakartaDay = (a: Date | null | undefined, reference: Date) => {
   if (!a) return false;
   return getJakartaDayStartUTC(a).getTime() === reference.getTime();
+};
+
+const normalizeRouterUsername = (value: string | undefined) =>
+  (value || "").toLowerCase().trim();
+
+const safeDecryptPassword = (encrypted: string) => {
+  try {
+    return decrypt(encrypted);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_err: unknown) {
+    console.warn("⚠️ Gagal decrypt router password, menggunakan nilai mentah");
+    return encrypted;
+  }
 };
 
 export const generateInvoice = async () => {
@@ -126,6 +146,134 @@ export const generateInvoice = async () => {
     });
 
     processed++;
+  }
+
+  return processed;
+};
+
+export const checkInactiveConnections = async () => {
+  const subscriptions = await prisma.subscription.findMany({
+    where: {
+      active: true,
+    },
+    include: {
+      package: {
+        include: {
+          router: true,
+        },
+      },
+      userProfile: true,
+      usersPPPOE: true,
+    },
+  });
+
+  type SubscriptionWithRouter = (typeof subscriptions)[number];
+  type RouterGroup = {
+    router: NonNullable<SubscriptionWithRouter["package"]["router"]>;
+    items: SubscriptionWithRouter[];
+  };
+
+  const routerGroups = new Map<string, RouterGroup>();
+
+  for (const sub of subscriptions) {
+    const router = sub.package.router;
+    if (!router || !router.ipAddress) continue;
+
+    const group = routerGroups.get(router.id);
+    if (group) {
+      group.items.push(sub);
+      continue;
+    }
+    routerGroups.set(router.id, {
+      router,
+      items: [sub],
+    });
+  }
+
+  let processed = 0;
+
+  const routerInactiveUsers = new Map<string, Set<string>>();
+
+  // Ambil semua PPP secret yang non-aktif dulu.
+  for (const { router } of routerGroups.values()) {
+    if (!router.apiUsername || !router.apiPassword) {
+      console.info(
+        `↪️ Router ${router.ipAddress} melewatkan karena kredensial tidak lengkap`
+      );
+      continue;
+    }
+
+    let connection: RouterOSConnection | null = null;
+    let close: (() => Promise<void>) | null = null;
+
+    try {
+      const config = {
+        host: router.ipAddress,
+        username: router.apiUsername,
+        password: safeDecryptPassword(router.apiPassword),
+        port: Number(router.port) || 65534,
+      };
+      ({ connection, close } = await createRouterOSConnection(config));
+    } catch (error) {
+      console.error(
+        "❌ Gagal terhubung ke MikroTik untuk router",
+        router.ipAddress,
+        error
+      );
+      continue;
+    }
+
+    try {
+      const status = await getSecretsStatus(connection);
+      const inactiveSet = new Set(
+        status.inactive
+          .map((record) =>
+            normalizeRouterUsername(
+              record["name"] || record["user"] || record["username"]
+            )
+          )
+          .filter(Boolean)
+      );
+      routerInactiveUsers.set(router.id, inactiveSet);
+    } catch (error) {
+      console.error(
+        "❌ Gagal mengambil status PPPoE untuk router",
+        router.ipAddress,
+        error
+      );
+    } finally {
+      if (close) {
+        await close();
+      }
+    }
+  }
+
+  for (const { router, items } of routerGroups.values()) {
+    const inactiveSet = routerInactiveUsers.get(router.id);
+    if (!inactiveSet || !inactiveSet.size) {
+      continue;
+    }
+
+    for (const sub of items) {
+      const username =
+        sub.usersPPPOE?.[0]?.username?.trim() || sub.number?.trim();
+      if (!username) continue;
+
+      const normalizedUsername = normalizeRouterUsername(username);
+      if (!normalizedUsername) continue;
+      if (!inactiveSet.has(normalizedUsername)) continue;
+
+      try {
+        await runTriggers("INACTIVE_CONNECTION", sub.id);
+        processed++;
+      } catch (error) {
+        console.error(
+          "❌ Gagal menjalankan trigger INACTIVE_CONNECTION",
+          sub.id,
+          error
+        );
+      }
+    }
   }
 
   return processed;

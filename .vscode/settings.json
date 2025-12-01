@@ -13,5 +13,6 @@
       "username": "postgres"
     }
   ],
-  "prisma.pinToPrisma6": true
+  "prisma.pinToPrisma6": true,
+  "typescript.tsdk": "node_modules/typescript/lib"
 }

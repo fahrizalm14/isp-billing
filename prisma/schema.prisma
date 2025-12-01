@@ -129,25 +129,26 @@ model Package {
 }
 
 model Subscription {
-  id              String      @id @default(cuid())
-  number          String      @default("")
-  userProfile     UserProfile @relation(fields: [userProfileId], references: [id])
-  userProfileId   String
-  odp             Odp         @relation(fields: [odpId], references: [id])
-  odpId           String
-  package         Package     @relation(fields: [packageId], references: [id])
-  packageId       String
-  active          Boolean     @default(false)
-  expiredAt       DateTime? // masa aktif langganan dinamis (akan)
-  dueDate         String
-  discount        Int         @default(0) // diskon dalam rupiah
-  additionalPrice Int         @default(0) // biaya tambahan dalam rupiah
-  isAudited       Boolean     @default(false) // sudah di audit apa belum? jika sudah maka audit hari berikutnya tidak akan masuk task
+  id                 String      @id @default(cuid())
+  number             String      @default("")
+  userProfile        UserProfile @relation(fields: [userProfileId], references: [id])
+  userProfileId      String
+  odp                Odp         @relation(fields: [odpId], references: [id])
+  odpId              String
+  package            Package     @relation(fields: [packageId], references: [id])
+  packageId          String
+  active             Boolean     @default(false)
+  expiredAt          DateTime? // masa aktif langganan dinamis (akan)
+  dueDate            String
+  discount           Int         @default(0) // diskon dalam rupiah
+  additionalPrice    Int         @default(0) // biaya tambahan dalam rupiah
+  isAudited          Boolean     @default(false) // sudah di audit apa belum? jika sudah maka audit hari berikutnya tidak akan masuk task
   lastInvoiceCreated DateTime?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  payments        Payment[]
-  usersPPPOE      UserPPPOE[]
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  payments           Payment[]
+  usersPPPOE         UserPPPOE[]
+  messages           Message[]
 }
 
 model UserPPPOE {
@@ -218,12 +219,14 @@ model Trigger {
 }
 
 model Message {
-  id         String  @id @default(cuid())
-  triggerKey String? // null kalau direct/manual
-  toNumber   String
-  content    String  @db.Text
-  status     String // QUEUED, SENT, FAILED
-  error      String?
+  id             String        @id @default(cuid())
+  triggerKey     String? // null kalau direct/manual
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  subscriptionId String?
+  toNumber       String
+  content        String        @db.Text
+  status         String // QUEUED, SENT, FAILED
+  error          String?
 
   createdAt DateTime @default(now())
 }

@@ -13,7 +13,8 @@ export async function runTriggers(
     | "PAYMENT_SUCCESS"
     | "DEACTIVATE_SUBSCRIPTION"
     | "ACTIVATE_SUBSCRIPTION"
-    | "INVOICE_CREATED",
+    | "INVOICE_CREATED"
+    | "INACTIVE_CONNECTION",
   subscriptionId: string
 ) {
   const triggers = await prisma.trigger.findMany({
@@ -66,19 +67,16 @@ export async function runTriggers(
     amount: totals ? totals.total.toString() : "",
     amountFormatted: totals ? totals.total.toLocaleString("id-ID") : "",
     discount: totals ? totals.discount.toString() : "0",
-    discountFormatted: totals
-      ? totals.discount.toLocaleString("id-ID")
-      : "0",
+    discountFormatted: totals ? totals.discount.toLocaleString("id-ID") : "0",
     taxPercent: totals ? totals.taxPercent.toString() : "0",
     taxValue: totals ? totals.taxValue.toString() : "0",
-    taxValueFormatted: totals
-      ? totals.taxValue.toLocaleString("id-ID")
-      : "0",
+    taxValueFormatted: totals ? totals.taxValue.toLocaleString("id-ID") : "0",
     periode: subs.dueDate ?? "",
     paymentLink: lastPayment?.paymentLink ?? "",
   };
 
   const website = await prisma.websiteInfo.findFirst();
+  const inactiveWindowMs = 24 * 60 * 60 * 1000;
 
   for (const trg of triggers) {
     let toNumber: string | null = null;
@@ -96,12 +94,31 @@ export async function runTriggers(
     }
 
     if (toNumber) {
+      if (trg.key === "INACTIVE_CONNECTION") {
+        const windowStart = new Date(Date.now() - inactiveWindowMs);
+        const alreadyNotified = await prisma.message.findFirst({
+          where: {
+            triggerKey: trg.key,
+            subscriptionId: subs.id,
+            createdAt: { gte: windowStart },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+        if (alreadyNotified) {
+          console.info(
+            `[Trigger] INACTIVE_CONNECTION untuk ${subs.id} sudah terkirim dalam 24 jam terakhir, melewati pengiriman.`
+          );
+          continue;
+        }
+      }
+
       const content = fillTemplate(trg.template.content, context);
 
       await prisma.message.create({
         data: {
           triggerKey: trg.key,
           toNumber,
+          subscriptionId: subs.id,
           content,
           status: "QUEUED",
         },

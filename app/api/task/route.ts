@@ -1,4 +1,8 @@
-import { auditSubscription, generateInvoice } from "@/lib/task";
+import {
+  auditSubscription,
+  checkInactiveConnections,
+  generateInvoice,
+} from "@/lib/task";
 import { processMessages } from "@/lib/whatsapp";
 import { NextResponse } from "next/server";
 
@@ -7,6 +11,7 @@ const tasks: Record<string, () => Promise<unknown>> = {
   invoice: generateInvoice, // Promise<number>
   audit: auditSubscription, // mungkin Promise<void>
   message: processMessages, // Promise<void>
+  connection: checkInactiveConnections, // Promise<number>
 };
 
 export async function POST(req: Request) {
