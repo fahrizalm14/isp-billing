@@ -143,6 +143,7 @@ model Subscription {
   discount        Int         @default(0) // diskon dalam rupiah
   additionalPrice Int         @default(0) // biaya tambahan dalam rupiah
   isAudited       Boolean     @default(false) // sudah di audit apa belum? jika sudah maka audit hari berikutnya tidak akan masuk task
+  lastInvoiceCreated DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   payments        Payment[]
