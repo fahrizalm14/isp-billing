@@ -1,4 +1,4 @@
-import { createPayment } from "@/lib/payment";
+import { createPaymentManual } from "@/lib/payment";
 import { calculatePaymentTotals } from "@/lib/paymentTotals";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
@@ -146,6 +146,8 @@ export async function POST(req: NextRequest) {
             id: true,
           },
         },
+        dueDate: true,
+        expiredAt: true,
         userProfile: {
           select: {
             name: true,
@@ -161,17 +163,14 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
 
-    await createPayment({
+    await createPaymentManual({
       amount: parsed.data.amount,
-      customerName: subscription.userProfile.name,
       subscriptionId: parsed.data.subscriptionId,
-      email: "",
-      packageId: subscription.package.id,
-      packageName: subscription.package.name,
       taxAmount: parsed.data.taxAmount,
       discountAmount: subscription.discount || 0,
       additionalAmount: subscription.additionalPrice || 0,
-      validPhoneNumber: subscription.userProfile.phone || "",
+      dueDate: subscription.dueDate,
+      expiredAt: subscription.expiredAt,
     });
 
     return NextResponse.json({ data: parsed.data });

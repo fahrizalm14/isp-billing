@@ -51,7 +51,7 @@ export const getPaymentLink = async ({
     usage_limit: 1,
     expiry: {
       unit: "days",
-      duration: 1,
+      duration: 30,
     },
   };
 
@@ -287,4 +287,48 @@ export async function createPayment({
   // todo whatsapp pelanggan (pendaftaran berhasil dan kirim link pembayaran)
 
   await runTriggers("INVOICE_CREATED", subscriptionId);
+}
+export async function createPaymentManual({
+  amount,
+  taxAmount,
+  discountAmount = 0,
+  additionalAmount = 0,
+  dueDate,
+  subscriptionId,
+  expiredAt,
+}: {
+  amount: number;
+  taxAmount: number;
+  discountAmount?: number;
+  additionalAmount?: number;
+  dueDate: string | null;
+  subscriptionId: string;
+  expiredAt: Date | null;
+}) {
+  const paymentLink = "";
+  const id = createId();
+  const number = await generatePaymentNumber();
+  const totals = calculatePaymentTotals({
+    amount,
+    discount: discountAmount,
+    additionalPrice: additionalAmount,
+    taxPercent: taxAmount,
+  });
+
+  await prisma.payment.create({
+    data: {
+      id,
+      amount: totals.baseAmount,
+      discount: totals.discount,
+      additionalPrice: totals.additionalPrice,
+      tax: totals.taxPercent,
+      number,
+      paymentLink,
+      paymentMethod: "",
+      subscriptionId,
+      status: "SUCCESS",
+    },
+  });
+
+  await activateSubscription(subscriptionId, dueDate, expiredAt);
 }

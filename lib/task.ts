@@ -20,13 +20,13 @@ export const generateInvoice = async () => {
   // Ambil waktu Jakarta hari ini
   const now = new Date();
 
-  const threeDaysLater = new Date(now);
-  threeDaysLater.setDate(threeDaysLater.getDate() + 2);
+  const fiveDaysLater = new Date(now);
+  fiveDaysLater.setDate(fiveDaysLater.getDate() + 4);
 
   const start = jakartaToUTC(
-    threeDaysLater.getFullYear(),
-    threeDaysLater.getMonth(),
-    threeDaysLater.getDate(),
+    fiveDaysLater.getFullYear(),
+    fiveDaysLater.getMonth(),
+    fiveDaysLater.getDate(),
     0,
     0,
     0,
@@ -34,9 +34,9 @@ export const generateInvoice = async () => {
   );
 
   const end = jakartaToUTC(
-    threeDaysLater.getFullYear(),
-    threeDaysLater.getMonth(),
-    threeDaysLater.getDate(),
+    fiveDaysLater.getFullYear(),
+    fiveDaysLater.getMonth(),
+    fiveDaysLater.getDate(),
     23,
     59,
     59,
