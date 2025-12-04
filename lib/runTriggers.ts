@@ -14,7 +14,8 @@ export async function runTriggers(
     | "DEACTIVATE_SUBSCRIPTION"
     | "ACTIVATE_SUBSCRIPTION"
     | "INVOICE_CREATED"
-    | "INACTIVE_CONNECTION",
+    | "INACTIVE_CONNECTION"
+    | "ACTIVE_CONNECTION",
   subscriptionId: string
 ) {
   const triggers = await prisma.trigger.findMany({
@@ -76,7 +77,7 @@ export async function runTriggers(
   };
 
   const website = await prisma.websiteInfo.findFirst();
-  const inactiveWindowMs = 24 * 60 * 60 * 1000;
+  const windowMs = 24 * 60 * 60 * 1000;
 
   for (const trg of triggers) {
     let toNumber: string | null = null;
@@ -94,8 +95,8 @@ export async function runTriggers(
     }
 
     if (toNumber) {
-      if (trg.key === "INACTIVE_CONNECTION") {
-        const windowStart = new Date(Date.now() - inactiveWindowMs);
+      if (trg.key === "INACTIVE_CONNECTION" || trg.key === "ACTIVE_CONNECTION") {
+        const windowStart = new Date(Date.now() - windowMs);
         const alreadyNotified = await prisma.message.findFirst({
           where: {
             triggerKey: trg.key,
@@ -106,7 +107,7 @@ export async function runTriggers(
         });
         if (alreadyNotified) {
           console.info(
-            `[Trigger] INACTIVE_CONNECTION untuk ${subs.id} sudah terkirim dalam 24 jam terakhir, melewati pengiriman.`
+            `[Trigger] ${trg.key} untuk ${subs.id} sudah terkirim dalam 24 jam terakhir, melewati pengiriman.`
           );
           continue;
         }

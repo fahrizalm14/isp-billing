@@ -41,6 +41,27 @@ const isSameJakartaDay = (a: Date | null | undefined, reference: Date) => {
 const normalizeRouterUsername = (value: string | undefined) =>
   (value || "").toLowerCase().trim();
 
+const extractRecordUsername = (record: Record<string, string>) =>
+  normalizeRouterUsername(
+    record["name"] || record["user"] || record["username"] || ""
+  );
+
+const buildSecretUsernameSet = (records?: Record<string, string>[]) => {
+  const set = new Set<string>();
+  if (!records?.length) {
+    return set;
+  }
+
+  for (const record of records) {
+    const normalized = extractRecordUsername(record);
+    if (normalized) {
+      set.add(normalized);
+    }
+  }
+
+  return set;
+};
+
 const safeDecryptPassword = (encrypted: string) => {
   try {
     return decrypt(encrypted);
@@ -187,10 +208,12 @@ export const checkInactiveConnections = async () => {
 
   let processed = 0;
 
-  const routerInactiveUsers = new Map<string, Set<string>>();
+  const routerConnectionStatus = new Map<
+    string,
+    { activeSet: Set<string>; inactiveSet: Set<string> }
+  >();
   const { getInterface } = await import("@/lib/mikrotik/connection");
 
-  // Ambil semua PPP secret yang non-aktif dulu.
   for (const { router } of routerGroups.values()) {
     if (!router.apiUsername || !router.apiPassword) {
       console.info(
@@ -206,16 +229,10 @@ export const checkInactiveConnections = async () => {
         password: safeDecryptPassword(router.apiPassword),
         port: Number(router.port) || 65534,
       });
-      const inactiveSet = new Set(
-        (interfaceData.secrets?.inactive ?? [])
-          .map((record) =>
-            normalizeRouterUsername(
-              record["name"] || record["user"] || record["username"]
-            )
-          )
-          .filter(Boolean)
-      );
-      routerInactiveUsers.set(router.id, inactiveSet);
+      routerConnectionStatus.set(router.id, {
+        activeSet: buildSecretUsernameSet(interfaceData.secrets?.active),
+        inactiveSet: buildSecretUsernameSet(interfaceData.secrets?.inactive),
+      });
     } catch (error) {
       console.error(
         "❌ Gagal mengambil status PPPoE untuk router",
@@ -226,10 +243,12 @@ export const checkInactiveConnections = async () => {
   }
 
   for (const { router, items } of routerGroups.values()) {
-    const inactiveSet = routerInactiveUsers.get(router.id);
-    if (!inactiveSet || !inactiveSet.size) {
+    const status = routerConnectionStatus.get(router.id);
+    if (!status) {
       continue;
     }
+
+    const { activeSet, inactiveSet } = status;
 
     for (const sub of items) {
       const username =
@@ -238,17 +257,53 @@ export const checkInactiveConnections = async () => {
 
       const normalizedUsername = normalizeRouterUsername(username);
       if (!normalizedUsername) continue;
-      if (!inactiveSet.has(normalizedUsername)) continue;
 
-      try {
-        await runTriggers("INACTIVE_CONNECTION", sub.id);
-        processed++;
-      } catch (error) {
-        console.error(
-          "❌ Gagal menjalankan trigger INACTIVE_CONNECTION",
-          sub.id,
-          error
-        );
+      const isActive = activeSet.has(normalizedUsername);
+      const isInactive = inactiveSet.has(normalizedUsername);
+
+      if (isInactive) {
+        try {
+          await runTriggers("INACTIVE_CONNECTION", sub.id);
+          processed++;
+        } catch (error) {
+          console.error(
+            "❌ Gagal menjalankan trigger INACTIVE_CONNECTION",
+            sub.id,
+            error
+          );
+        }
+      }
+
+      const shouldUpdateOnlineStatus =
+        sub.lastOnlineStatus !== isActive;
+      if (shouldUpdateOnlineStatus) {
+        if (isActive && !sub.lastOnlineStatus) {
+          console.info(
+            `ℹ️ Deteksi koneksi aktif baru untuk subscription ${sub.id}`
+          );
+          try {
+            await runTriggers("ACTIVE_CONNECTION", sub.id);
+            processed++;
+          } catch (error) {
+            console.error(
+              "❌ Gagal menjalankan trigger ACTIVE_CONNECTION",
+              sub.id,
+              error
+            );
+          }
+        }
+        try {
+          await prisma.subscription.update({
+            where: { id: sub.id },
+            data: { lastOnlineStatus: isActive },
+          });
+        } catch (error) {
+          console.error(
+            "❌ Gagal mengupdate lastOnlineStatus",
+            sub.id,
+            error
+          );
+        }
       }
     }
   }
