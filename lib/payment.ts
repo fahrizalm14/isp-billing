@@ -330,5 +330,6 @@ export async function createPaymentManual({
     },
   });
 
+  await runTriggers("PAYMENT_SUCCESS", subscriptionId);
   await activateSubscription(subscriptionId, dueDate, expiredAt);
 }
